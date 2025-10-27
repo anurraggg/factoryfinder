@@ -169,24 +169,13 @@ function buildFactoryItem(heading, addresses) {
 }
 
 /**
- * Decorates the block: Parses pre-table text and table into UI.
+ * Decorates the block: Parses pre-table text and div rows into UI (fixed for EDS table rendering).
  * @param {Element} block The block element.
  */
 export default async function decorate(block) {
   const config = readBlockConfig(block);
 
-  // Collect static content before first table
-  let staticContent = '';
-  let table = null;
-  [...block.children].forEach((child) => {
-    if (child.tagName === 'TABLE') {
-      table = child;
-      return;
-    }
-    staticContent += child.outerHTML || child.textContent;
-  });
-
-  // Clear block
+  // Clear block first
   block.innerHTML = '';
 
   // Title (hardcoded; adjust if dynamic)
@@ -214,41 +203,39 @@ export default async function decorate(block) {
   searchContainer.appendChild(button);
   block.appendChild(searchContainer);
 
-  // Instructions from static (exclude title)
-  if (staticContent) {
-    const instructions = document.createElement('div');
-    instructions.classList.add('instructions');
-    instructions.innerHTML = staticContent.replace(/FACTORY FINDER/i, '').trim().replace(/\s+/g, ' ');
-    block.appendChild(instructions);
-  }
+  // Parse for static content and factory rows (assumes EDS renders table rows as divs with 2+ children)
+  let hasFactories = false;
+  const factoriesContainer = document.createElement('div');
+  factoriesContainer.classList.add('factories-container');
 
-  // Product section (extract from static if present)
-  const productMatch = staticContent.match(/(Wheat Flour|Multi Millet).*?(Atta|Flour)/i);
-  if (productMatch) {
-    const productEl = document.createElement('div');
-    productEl.classList.add('product-section');
-    productEl.innerHTML = productMatch[0].replace(/\n/g, '<br>');
-    block.appendChild(productEl);
-  }
-
-  // Parse table for factories
-  if (table) {
-    const factoriesContainer = document.createElement('div');
-    factoriesContainer.classList.add('factories-container');
-
-    const rows = table.querySelectorAll('tr');
-    rows.forEach((row) => {
-      const cols = [...row.children];
-      if (cols.length >= 2) {
-        const heading = cols[0].innerHTML.trim() || cols[0].textContent.trim();
-        const addresses = cols[1].innerHTML.trim() || cols[1].textContent.trim();
-        if (heading && addresses) {
-          const item = buildFactoryItem(heading, addresses);
-          factoriesContainer.appendChild(item);
-        }
+  block.querySelectorAll(':scope > *').forEach((child) => {
+    if (child.children && child.children.length >= 2) {
+      // Treat as factory row
+      const cols = [...child.children];
+      const heading = cols[0].innerHTML.trim() || cols[0].textContent.trim();
+      const addresses = cols[1].innerHTML.trim() || cols[1].textContent.trim();
+      if (heading && addresses) {
+        const item = buildFactoryItem(heading, addresses);
+        factoriesContainer.appendChild(item);
+        hasFactories = true;
       }
-    });
+    } else if (child.tagName === 'P' || child.tagName === 'DIV') {
+      // Static content (e.g., instructions/product header)
+      if (child.textContent.includes('Flour') || child.textContent.includes('Millet')) {
+        const productEl = document.createElement('div');
+        productEl.classList.add('product-section');
+        productEl.innerHTML = child.innerHTML;
+        block.appendChild(productEl);
+      } else {
+        const instructions = document.createElement('div');
+        instructions.classList.add('instructions');
+        instructions.innerHTML = child.innerHTML;
+        block.appendChild(instructions);
+      }
+    }
+  });
 
+  if (hasFactories) {
     const noResults = document.createElement('div');
     noResults.classList.add('no-results');
     noResults.style.display = 'none';
@@ -260,7 +247,7 @@ export default async function decorate(block) {
     // Setup search after full DOM insertion
     requestAnimationFrame(() => setupSearch(input, button, factoriesContainer));
   } else {
-    // Fallback if no table: Log for debug
-    console.warn('No table found in factory-finder block – add a 2-column table in Google Docs.');
+    // Fallback if no rows found: Log for debug
+    console.warn('No factory rows found in factory-finder block – ensure Google Doc has a 2-column table with div rows.');
   }
 }
