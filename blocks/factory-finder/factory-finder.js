@@ -169,13 +169,66 @@ function buildFactoryItem(heading, addresses) {
 }
 
 /**
- * Decorates the block: Parses pre-table text and div rows into UI (fixed for EDS table rendering).
+ * Decorates the block: Parses pre-table text as product heading and HTML table rows as factories (fixed for EDS; skips header row, preserves addresses).
  * @param {Element} block The block element.
  */
 export default async function decorate(block) {
   const config = readBlockConfig(block);
 
-  // Clear block first
+  // Parse original content BEFORE clearing
+  let productHeading = null;
+  let factoryRows = [];
+  let otherStatic = [];
+
+  // Look for table first
+  const table = block.querySelector('table');
+  if (table) {
+    // Product heading is first non-table element
+    const preTable = block.querySelector(':scope > *:not(table)');
+    if (preTable) {
+      productHeading = preTable.innerHTML.trim();
+    }
+
+    // Parse table rows, skip header if present (first row with short text like "Heading")
+    const rows = table.querySelectorAll('tr');
+    let skipHeader = true; // Assume first row is header
+    rows.forEach((row) => {
+      const cols = row.querySelectorAll('td, th');
+      if (cols.length >= 2) {
+        const heading = cols[0].innerHTML.trim() || cols[0].textContent.trim();
+        const addresses = cols[1].innerHTML.trim() || cols[1].textContent.trim();
+        if (skipHeader) {
+          // Skip if looks like header (short text, no code like "(01)")
+          if (heading.toLowerCase().includes('heading') || !heading.match(/\(\d/)) {
+            skipHeader = true;
+            return;
+          }
+          skipHeader = false;
+        }
+        if (heading && addresses && !skipHeader) {
+          factoryRows.push({ heading, addresses });
+        }
+      }
+    });
+  } else {
+    // Fallback: Parse div rows if no table
+    block.querySelectorAll(':scope > *').forEach((child, index) => {
+      if (index === 0 && (child.tagName === 'P' || child.tagName === 'DIV') && child.textContent.includes('Flour') && child.textContent.includes('(')) {
+        productHeading = child.innerHTML.trim();
+      } else if (child.children && child.children.length === 2) {
+        const cols = [...child.children];
+        const heading = cols[0].innerHTML.trim() || cols[0].textContent.trim();
+        const addresses = cols[1].innerHTML.trim() || cols[1].textContent.trim();
+        if (heading && addresses) {
+          factoryRows.push({ heading, addresses });
+        }
+      } else {
+        otherStatic.push(child.outerHTML || child.textContent);
+      }
+    });
+  }
+
+  // Now clear and rebuild
   block.innerHTML = '';
 
   // Title (hardcoded; adjust if dynamic)
@@ -203,39 +256,32 @@ export default async function decorate(block) {
   searchContainer.appendChild(button);
   block.appendChild(searchContainer);
 
-  // Parse for static content and factory rows (assumes EDS renders table rows as divs with 2+ children)
-  let hasFactories = false;
+  // Product heading (first static as bold/centered heading)
+  if (productHeading) {
+    const productEl = document.createElement('div');
+    productEl.classList.add('product-section');
+    productEl.innerHTML = productHeading;
+    block.appendChild(productEl);
+  }
+
+  // Other static (instructions)
+  if (otherStatic.length > 0) {
+    const instructions = document.createElement('div');
+    instructions.classList.add('instructions');
+    instructions.innerHTML = otherStatic.join('').replace(/FACTORY FINDER/i, '').trim().replace(/\s+/g, ' ');
+    block.appendChild(instructions);
+  }
+
+  // Build factories container from parsed rows
   const factoriesContainer = document.createElement('div');
   factoriesContainer.classList.add('factories-container');
 
-  block.querySelectorAll(':scope > *').forEach((child) => {
-    if (child.children && child.children.length >= 2) {
-      // Treat as factory row
-      const cols = [...child.children];
-      const heading = cols[0].innerHTML.trim() || cols[0].textContent.trim();
-      const addresses = cols[1].innerHTML.trim() || cols[1].textContent.trim();
-      if (heading && addresses) {
-        const item = buildFactoryItem(heading, addresses);
-        factoriesContainer.appendChild(item);
-        hasFactories = true;
-      }
-    } else if (child.tagName === 'P' || child.tagName === 'DIV') {
-      // Static content (e.g., instructions/product header)
-      if (child.textContent.includes('Flour') || child.textContent.includes('Millet')) {
-        const productEl = document.createElement('div');
-        productEl.classList.add('product-section');
-        productEl.innerHTML = child.innerHTML;
-        block.appendChild(productEl);
-      } else {
-        const instructions = document.createElement('div');
-        instructions.classList.add('instructions');
-        instructions.innerHTML = child.innerHTML;
-        block.appendChild(instructions);
-      }
-    }
+  factoryRows.forEach(({ heading, addresses }) => {
+    const item = buildFactoryItem(heading, addresses);
+    factoriesContainer.appendChild(item);
   });
 
-  if (hasFactories) {
+  if (factoryRows.length > 0) {
     const noResults = document.createElement('div');
     noResults.classList.add('no-results');
     noResults.style.display = 'none';
@@ -248,6 +294,6 @@ export default async function decorate(block) {
     requestAnimationFrame(() => setupSearch(input, button, factoriesContainer));
   } else {
     // Fallback if no rows found: Log for debug
-    console.warn('No factory rows found in factory-finder block – ensure Google Doc has a 2-column table with div rows.');
+    console.warn('No factory rows found in factory-finder block – ensure Google Doc has a 2-column table (EDS renders as divs with 2 cell divs per row).');
   }
 }

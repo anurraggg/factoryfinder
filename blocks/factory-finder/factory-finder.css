@@ -70,9 +70,12 @@
 
 .factory-finder .product-section {
   font-weight: bold;
+  font-size: 1.2rem;
   margin: 1rem 0;
   padding: 0 2rem;
   text-align: center;
+  border-bottom: 1px solid var(--finder-border-color);
+  padding-bottom: 1rem;
 }
 
 .factory-finder .factories-container {
@@ -143,5 +146,9 @@
 
   .factory-finder .factory-heading {
     font-size: 1.2rem; /* Slightly smaller on mobile for fit */
+  }
+
+  .factory-finder .product-section {
+    font-size: 1.1rem;
   }
 }
