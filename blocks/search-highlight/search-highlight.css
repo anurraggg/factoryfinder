@@ -12,6 +12,7 @@
     font-size: 16px;
     box-sizing: border-box;
     margin-bottom: 20px;
+    background: #fff;
   }
   
   .search-highlight input[type="search"]:focus {
@@ -48,6 +49,7 @@
   
   .search-highlight .content .addresses {
     margin: 0;
+    white-space: pre-wrap; /* Preserve line breaks */
   }
   
   .search-highlight .highlight {

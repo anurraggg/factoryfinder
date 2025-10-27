@@ -59,7 +59,7 @@ function highlightMatches(content, term) {
 
     if (fragments.length > 1) {
       const fragmentContainer = document.createDocumentFragment();
-      fragments.forEach((fragment, index) => {
+      fragments.forEach((fragment) => {
         if (fragment.toLowerCase() === term.toLowerCase()) {
           const span = document.createElement('span');
           span.className = 'highlight';
@@ -89,6 +89,8 @@ function handleSearch(event, content) {
 
 // eslint-disable-next-line import/prefer-default-export
 export default async function decorate(block) {
+  console.log('Decorating search-highlight block'); // Debug log
+
   // Ensure block has class and status
   block.classList.add('block');
   block.dataset.blockStatus = 'initialized';
@@ -96,6 +98,7 @@ export default async function decorate(block) {
   // Find or create the search input in the first row/second column
   const rows = block.querySelectorAll(':scope > div');
   if (rows.length === 0) {
+    console.warn('No rows found in search-highlight block');
     return;
   }
 
@@ -105,18 +108,29 @@ export default async function decorate(block) {
 
   if (cols.length >= 2) {
     const secondCol = cols[1];
+    const colText = secondCol.textContent.trim();
     const existingInput = secondCol.querySelector('input[type="search"]');
     if (existingInput) {
       searchInput = existingInput;
+    } else if (colText) {
+      // Use col text as placeholder
+      secondCol.innerHTML = `<input type="search" placeholder="${colText}" />`;
+      searchInput = secondCol.querySelector('input[type="search"]');
     } else {
-      // Create search input if placeholder text exists
-      const placeholderText = secondCol.textContent.trim();
-      if (placeholderText) {
-        secondCol.innerHTML = `<input type="search" placeholder="${placeholderText}" />`;
-        searchInput = secondCol.querySelector('input[type="search"]');
-      }
+      // Fallback: Default input
+      secondCol.innerHTML = '<input type="search" placeholder="Search addresses..." />';
+      searchInput = secondCol.querySelector('input[type="search"]');
     }
+  } else {
+    // No second col? Inject default input at top
+    const defaultInput = document.createElement('input');
+    defaultInput.type = 'search';
+    defaultInput.placeholder = 'Search addresses...';
+    firstRow.prepend(defaultInput);
+    searchInput = defaultInput;
   }
+
+  console.log('Search input created:', searchInput); // Debug log
 
   // Define content area: everything after the first row
   const content = document.createElement('div');
@@ -147,19 +161,22 @@ export default async function decorate(block) {
   }
   block.appendChild(content);
 
-  // Remove first row if no input was created
-  if (!searchInput) {
-    rows[0].remove();
-  } else {
-    // Add event listener to search input
+  // Add event listener if input exists
+  if (searchInput) {
     searchInput.addEventListener('input', (event) => handleSearch(event, content));
-    // Initial clear
-    clearHighlights(content);
+    clearHighlights(content); // Initial clear
+  } else {
+    console.error('No search input created!');
   }
 
   // Load CSS for the block
   const { codeBasePath } = window.hlx || {};
   if (codeBasePath) {
-    await import(`${codeBasePath}/blocks/search-highlight/search-highlight.css`);
+    try {
+      await import(`${codeBasePath}/blocks/search-highlight/search-highlight.css`);
+      console.log('CSS loaded for search-highlight');
+    } catch (error) {
+      console.error('Failed to load CSS:', error);
+    }
   }
 }
