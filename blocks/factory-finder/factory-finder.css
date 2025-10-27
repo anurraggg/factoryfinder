@@ -96,10 +96,10 @@
 }
 
 .factory-finder .factory-heading {
-  font-weight: bold;
+  font-weight: 700; /* Bolder (700 vs default bold 600) */
   color: var(--finder-text-color);
   margin-bottom: 0.5rem;
-  font-size: 1.1rem; /* Slightly larger for emphasis */
+  font-size: 1.3rem; /* Larger for emphasis */
 }
 
 .factory-finder .factory-addresses {
@@ -138,5 +138,9 @@
 
   .factory-finder .search-input {
     padding: 0.75rem 3rem 0.75rem 1rem; /* Adjust for mobile */
+  }
+
+  .factory-finder .factory-heading {
+    font-size: 1.2rem; /* Slightly smaller on mobile for fit */
   }
 }
