@@ -13,29 +13,51 @@ import {
 } from '../../scripts/aem.js';
 
 /**
- * Filters factory items based on search query.
+ * Extracts factory code from heading (e.g., "01" from "(01) COMPANY").
+ * @param {string} heading The heading text.
+ * @returns {string} The code or empty string.
+ */
+function extractCode(heading) {
+  const match = heading.match(/\(\s*(\d{2})\s*\)/);
+  return match ? match[1] : '';
+}
+
+/**
+ * Filters factory items based on search query, prioritizing code match.
  * @param {Element} container The container of factory items.
  * @param {string} query The search term.
  */
 function filterFactories(container, query) {
   const items = container.querySelectorAll('.factory-item');
   let visibleCount = 0;
+  const lowerQuery = query.toLowerCase().trim();
 
-  items.forEach((item) => {
-    const text = item.textContent.toLowerCase();
-    const matches = query === '' || text.includes(query.toLowerCase());
-    if (matches) {
+  if (lowerQuery === '') {
+    // Show all if empty
+    items.forEach((item) => {
       item.classList.remove('hidden');
       visibleCount++;
-    } else {
-      item.classList.add('hidden');
-    }
-  });
+    });
+  } else {
+    items.forEach((item) => {
+      const code = item.dataset.code || '';
+      const text = item.textContent.toLowerCase();
+      const codeMatch = code.startsWith(lowerQuery) || code.includes(lowerQuery);
+      const textMatch = text.includes(lowerQuery);
+      const matches = codeMatch || textMatch;
+      if (matches) {
+        item.classList.remove('hidden');
+        visibleCount++;
+      } else {
+        item.classList.add('hidden');
+      }
+    });
+  }
 
-  // Show/hide no-results message
+  // Show/hide no-results
   const noResults = container.parentElement.querySelector('.no-results');
   if (noResults) {
-    noResults.style.display = visibleCount === 0 && query !== '' ? 'block' : 'none';
+    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
   }
 }
 
@@ -51,33 +73,36 @@ function setupSearch(input, button, container) {
     filterFactories(container, query);
   };
 
-  input.addEventListener('keyup', handleSearch);
+  input.addEventListener('input', handleSearch); // Changed to 'input' for real-time
   button.addEventListener('click', handleSearch);
 
-  // Initial load: show all
+  // Initial: show all
   handleSearch();
 }
 
 /**
  * Builds a factory item from row data.
- * @param {string} code The factory code.
- * @param {string} details The factory details HTML.
+ * @param {string} heading The factory heading.
+ * @param {string} addresses The addresses HTML.
  * @returns {Element} The factory item element.
  */
-function buildFactoryItem(code, details) {
+function buildFactoryItem(heading, addresses) {
   const item = document.createElement('div');
   item.classList.add('factory-item');
 
-  const codeEl = document.createElement('div');
-  codeEl.classList.add('factory-code');
-  codeEl.textContent = code;
+  const code = extractCode(heading);
+  item.dataset.code = code;
 
-  const detailsEl = document.createElement('div');
-  detailsEl.classList.add('factory-details');
-  detailsEl.innerHTML = details;
+  const headingEl = document.createElement('div');
+  headingEl.classList.add('factory-heading');
+  headingEl.innerHTML = heading; // Preserves bold/HTML
 
-  item.appendChild(codeEl);
-  item.appendChild(detailsEl);
+  const addressesEl = document.createElement('div');
+  addressesEl.classList.add('factory-addresses');
+  addressesEl.innerHTML = addresses;
+
+  item.appendChild(headingEl);
+  item.appendChild(addressesEl);
 
   return item;
 }
@@ -89,31 +114,25 @@ function buildFactoryItem(code, details) {
 export default async function decorate(block) {
   const config = readBlockConfig(block);
 
-  // Extract static content: Everything before the first table
+  // Collect static content before first table
   let staticContent = '';
-  let tableStart = null;
-  block.childNodes.forEach((node, index) => {
-    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'TABLE') {
-      tableStart = index;
+  let table = null;
+  [...block.children].forEach((child) => {
+    if (child.tagName === 'TABLE') {
+      table = child;
       return;
     }
-    staticContent += node.textContent || node.innerHTML || '';
+    staticContent += child.outerHTML || child.textContent;
   });
 
-  // Clear and rebuild static part
-  const staticEl = document.createElement('div');
-  staticEl.innerHTML = staticContent.replace(/\n/g, '<br>'); // Preserve line breaks
-  staticEl.classList.add('static-content');
+  // Clear block
   block.innerHTML = '';
 
-  // Title extraction (first h1 or bold)
-  const titleMatch = staticContent.match(/FACTORY FINDER/i);
-  if (titleMatch) {
-    const title = document.createElement('h2');
-    title.classList.add('title');
-    title.textContent = 'FACTORY FINDER';
-    block.appendChild(title);
-  }
+  // Title (if in static, or hardcoded)
+  const titleEl = document.createElement('h2');
+  titleEl.classList.add('title');
+  titleEl.textContent = 'FACTORY FINDER'; // Hardcoded; remove if not needed
+  block.appendChild(titleEl);
 
   // Search bar
   const searchContainer = document.createElement('div');
@@ -128,19 +147,22 @@ export default async function decorate(block) {
   const button = document.createElement('button');
   button.classList.add('search-button');
   button.setAttribute('aria-label', 'Search');
-  button.innerHTML = 'Q'; // Placeholder for magnifying glass
+  button.innerHTML = 'Q';
 
   searchContainer.appendChild(input);
   searchContainer.appendChild(button);
   block.appendChild(searchContainer);
 
-  // Instructions and product section (from static)
-  const instructions = document.createElement('div');
-  instructions.classList.add('instructions');
-  instructions.innerHTML = staticContent.replace(/FACTORY FINDER/i, '').trim().replace(/\n/g, '<br>');
-  block.appendChild(instructions);
+  // Instructions from static (exclude title/product if separate)
+  if (staticContent) {
+    const instructions = document.createElement('div');
+    instructions.classList.add('instructions');
+    instructions.innerHTML = staticContent.replace(/FACTORY FINDER/i, '').trim();
+    block.appendChild(instructions);
+  }
 
-  const productMatch = staticContent.match(/Wheat Flour.*$/i);
+  // Product section (extract from static if present)
+  const productMatch = staticContent.match(/Wheat Flour.*$/i) || staticContent.match(/Multi Millet.*$/i); // Flexible
   if (productMatch) {
     const productEl = document.createElement('div');
     productEl.classList.add('product-section');
@@ -148,31 +170,33 @@ export default async function decorate(block) {
     block.appendChild(productEl);
   }
 
-  // Parse table for factories
-  const table = block.querySelector('table');
+  // Parse table
   if (table) {
     const factoriesContainer = document.createElement('div');
     factoriesContainer.classList.add('factories-container');
 
-    const tbody = table.querySelector('tbody') || table;
-    tbody.querySelectorAll('tr').forEach((row) => {
+    const rows = table.querySelectorAll('tr');
+    rows.forEach((row) => {
       const cols = [...row.children];
       if (cols.length >= 2) {
-        const code = cols[0].textContent.trim();
-        const details = cols[1].innerHTML || cols[1].textContent;
-        const item = buildFactoryItem(code, details);
-        factoriesContainer.appendChild(item);
+        const heading = cols[0].innerHTML.trim() || cols[0].textContent.trim();
+        const addresses = cols[1].innerHTML.trim() || cols[1].textContent.trim();
+        if (heading && addresses) {
+          const item = buildFactoryItem(heading, addresses);
+          factoriesContainer.appendChild(item);
+        }
       }
     });
 
     const noResults = document.createElement('div');
     noResults.classList.add('no-results');
+    noResults.style.display = 'none';
     noResults.textContent = 'No factories match your search. Try different keywords.';
     factoriesContainer.appendChild(noResults);
 
     block.appendChild(factoriesContainer);
 
-    // Setup search after DOM insertion
+    // Setup search
     setupSearch(input, button, factoriesContainer);
   }
 }

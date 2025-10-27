@@ -92,14 +92,15 @@
   padding: 0;
 }
 
-.factory-finder .factory-code {
+.factory-finder .factory-heading {
   font-weight: bold;
   color: var(--finder-text-color);
+  margin-bottom: 0.5rem;
 }
 
-.factory-finder .factory-details {
-  margin-top: 0.5rem;
+.factory-finder .factory-addresses {
   line-height: 1.5;
+  margin-top: 0.5rem;
 }
 
 .factory-finder .no-results {
