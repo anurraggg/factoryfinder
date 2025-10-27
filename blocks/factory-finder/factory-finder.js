@@ -73,8 +73,15 @@ function setupSearch(input, button, container) {
     filterFactories(container, query);
   };
 
-  input.addEventListener('input', handleSearch); // Changed to 'input' for real-time
-  button.addEventListener('click', handleSearch);
+  // Real-time on typing
+  input.addEventListener('input', handleSearch);
+
+  // Manual trigger on button click (prevents default if form, but not needed here)
+  button.addEventListener('click', (e) => {
+    e.preventDefault(); // Ensure no page reload
+    handleSearch();
+    input.focus(); // Refocus input after click
+  });
 
   // Initial: show all
   handleSearch();
@@ -95,7 +102,7 @@ function buildFactoryItem(heading, addresses) {
 
   const headingEl = document.createElement('div');
   headingEl.classList.add('factory-heading');
-  headingEl.innerHTML = heading; // Preserves bold/HTML
+  headingEl.innerHTML = heading; // Preserves bold/HTML from Docs
 
   const addressesEl = document.createElement('div');
   addressesEl.classList.add('factory-addresses');
@@ -128,10 +135,10 @@ export default async function decorate(block) {
   // Clear block
   block.innerHTML = '';
 
-  // Title (if in static, or hardcoded)
+  // Title (hardcoded; adjust if dynamic)
   const titleEl = document.createElement('h2');
   titleEl.classList.add('title');
-  titleEl.textContent = 'FACTORY FINDER'; // Hardcoded; remove if not needed
+  titleEl.textContent = 'FACTORY FINDER';
   block.appendChild(titleEl);
 
   // Search bar
@@ -153,7 +160,7 @@ export default async function decorate(block) {
   searchContainer.appendChild(button);
   block.appendChild(searchContainer);
 
-  // Instructions from static (exclude title/product if separate)
+  // Instructions from static
   if (staticContent) {
     const instructions = document.createElement('div');
     instructions.classList.add('instructions');
@@ -162,7 +169,7 @@ export default async function decorate(block) {
   }
 
   // Product section (extract from static if present)
-  const productMatch = staticContent.match(/Wheat Flour.*$/i) || staticContent.match(/Multi Millet.*$/i); // Flexible
+  const productMatch = staticContent.match(/Wheat Flour.*$/i) || staticContent.match(/Multi Millet.*$/i);
   if (productMatch) {
     const productEl = document.createElement('div');
     productEl.classList.add('product-section');

@@ -27,7 +27,7 @@
 
 .factory-finder .search-input {
   width: 100%;
-  padding: 0.75rem 3rem 0.75rem 1rem;
+  padding: 0.75rem 3.5rem 0.75rem 1rem; /* Increased right padding for button */
   border: 1px solid var(--finder-border-color);
   border-radius: 4px;
   background-color: var(--finder-search-bg);
@@ -37,7 +37,7 @@
 
 .factory-finder .search-button {
   position: absolute;
-  right: 0.5rem;
+  right: 0.25rem; /* Adjusted for better alignment */
   top: 50%;
   transform: translateY(-50%);
   background: var(--finder-button-bg);
@@ -52,6 +52,7 @@
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
+  box-sizing: border-box;
 }
 
 .factory-finder .search-button:hover {
@@ -83,6 +84,7 @@
   padding: 1rem 2rem;
   opacity: 1;
   transition: opacity 0.3s ease;
+  text-align: left; /* Left align entire item */
 }
 
 .factory-finder .factory-item.hidden {
@@ -96,11 +98,13 @@
   font-weight: bold;
   color: var(--finder-text-color);
   margin-bottom: 0.5rem;
+  font-size: 1.1rem; /* Slightly larger for emphasis */
 }
 
 .factory-finder .factory-addresses {
   line-height: 1.5;
   margin-top: 0.5rem;
+  text-align: left; /* Ensure left alignment */
 }
 
 .factory-finder .no-results {
@@ -123,5 +127,9 @@
 
   .factory-finder .title {
     font-size: 1.5rem;
+  }
+
+  .factory-finder .search-input {
+    padding: 0.75rem 3rem 0.75rem 1rem; /* Adjust for mobile */
   }
 }
