@@ -84,7 +84,7 @@
   border-bottom: 1px solid var(--finder-border-color);
   padding: 1rem 2rem;
   opacity: 1;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, height 0.3s ease;
   text-align: left; /* Left align entire item */
 }
 
@@ -93,6 +93,7 @@
   height: 0;
   overflow: hidden;
   padding: 0;
+  border-bottom: none;
 }
 
 .factory-finder .factory-heading {

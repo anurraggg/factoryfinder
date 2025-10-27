@@ -13,40 +13,46 @@ import {
 } from '../../scripts/aem.js';
 
 /**
- * Highlights matching text in an element's innerHTML.
+ * Clears all highlights in an element.
+ * @param {Element} element The element to clear highlights from.
+ * @returns {void}
+ */
+function clearHighlights(element) {
+  const highlights = element.querySelectorAll('.highlight');
+  highlights.forEach((span) => {
+    span.outerHTML = span.innerHTML;
+  });
+}
+
+/**
+ * Highlights matching text in an element by replacing text nodes.
  * @param {Element} element The element to highlight in.
  * @param {string} query The search term to highlight.
  * @returns {void}
  */
 function highlightText(element, query) {
   if (!query.trim()) {
-    // Clear highlights
-    element.querySelectorAll('.highlight').forEach((span) => {
-      const parent = span.parentNode;
-      parent.replaceChild(document.createTextNode(span.textContent), span);
-    });
+    clearHighlights(element);
     return;
   }
 
-  const walker = document.createTreeWalker(
-    element,
-    NodeFilter.SHOW_TEXT,
-    null,
-    false
-  );
+  clearHighlights(element);
 
-  const fragments = [];
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
   let node;
   while ((node = walker.nextNode())) {
     const text = node.textContent;
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     if (regex.test(text)) {
+      const parent = node.parentNode;
       const highlighted = text.replace(regex, '<span class="highlight">$1</span>');
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = highlighted;
-      fragments.push(...Array.from(tempDiv.childNodes));
-      node.parentNode.replaceChild(tempDiv, node);
-      [...tempDiv.childNodes].forEach((frag) => fragments.push(frag));
+      const temp = document.createElement('div');
+      temp.innerHTML = highlighted;
+      const fragment = document.createDocumentFragment();
+      while (temp.firstChild) {
+        fragment.appendChild(temp.firstChild);
+      }
+      parent.replaceChild(fragment, node);
     }
   }
 }
@@ -72,9 +78,7 @@ function filterFactories(container, query) {
   const lowerQuery = query.toLowerCase().trim();
 
   // Clear all previous highlights
-  items.forEach((item) => {
-    highlightText(item, ''); // Clears highlights
-  });
+  items.forEach((item) => clearHighlights(item));
 
   if (lowerQuery === '') {
     // Show all if empty (no highlights)
@@ -93,8 +97,10 @@ function filterFactories(container, query) {
         item.classList.remove('hidden');
         visibleCount++;
         // Apply highlighting to visible item
-        highlightText(item.querySelector('.factory-heading'), query);
-        highlightText(item.querySelector('.factory-addresses'), query);
+        const headingEl = item.querySelector('.factory-heading');
+        const addressesEl = item.querySelector('.factory-addresses');
+        if (headingEl) highlightText(headingEl, query);
+        if (addressesEl) highlightText(addressesEl, query);
       } else {
         item.classList.add('hidden');
       }
@@ -102,7 +108,7 @@ function filterFactories(container, query) {
   }
 
   // Show/hide no-results
-  const noResults = container.parentElement.querySelector('.no-results');
+  const noResults = container.querySelector('.no-results');
   if (noResults) {
     noResults.style.display = visibleCount === 0 ? 'block' : 'none';
   }
@@ -116,12 +122,13 @@ function filterFactories(container, query) {
  */
 function setupSearch(input, button, container) {
   const handleSearch = () => {
-    const query = input.value;
+    const query = input.value || ''; // Ensure string
     filterFactories(container, query);
   };
 
-  // Real-time on typing
+  // Real-time on typing (input + keyup for compatibility)
   input.addEventListener('input', handleSearch);
+  input.addEventListener('keyup', handleSearch);
 
   // Manual trigger on button click
   button.addEventListener('click', (e) => {
@@ -207,16 +214,16 @@ export default async function decorate(block) {
   searchContainer.appendChild(button);
   block.appendChild(searchContainer);
 
-  // Instructions from static
+  // Instructions from static (exclude title)
   if (staticContent) {
     const instructions = document.createElement('div');
     instructions.classList.add('instructions');
-    instructions.innerHTML = staticContent.replace(/FACTORY FINDER/i, '').trim();
+    instructions.innerHTML = staticContent.replace(/FACTORY FINDER/i, '').trim().replace(/\s+/g, ' ');
     block.appendChild(instructions);
   }
 
   // Product section (extract from static if present)
-  const productMatch = staticContent.match(/Wheat Flour.*$/i) || staticContent.match(/Multi Millet.*$/i);
+  const productMatch = staticContent.match(/(Wheat Flour|Multi Millet).*?(Atta|Flour)/i);
   if (productMatch) {
     const productEl = document.createElement('div');
     productEl.classList.add('product-section');
@@ -224,7 +231,7 @@ export default async function decorate(block) {
     block.appendChild(productEl);
   }
 
-  // Parse table
+  // Parse table for factories
   if (table) {
     const factoriesContainer = document.createElement('div');
     factoriesContainer.classList.add('factories-container');
@@ -250,7 +257,10 @@ export default async function decorate(block) {
 
     block.appendChild(factoriesContainer);
 
-    // Setup search
-    setupSearch(input, button, factoriesContainer);
+    // Setup search after full DOM insertion
+    requestAnimationFrame(() => setupSearch(input, button, factoriesContainer));
+  } else {
+    // Fallback if no table: Log for debug
+    console.warn('No table found in factory-finder block – add a 2-column table in Google Docs.');
   }
 }
