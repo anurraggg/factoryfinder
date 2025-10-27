@@ -5,6 +5,7 @@
   --finder-text-color: #333;
   --finder-search-bg: #fff;
   --finder-button-bg: #dc143c;
+  --finder-highlight-bg: #ffff99; /* Yellow for highlights */
   --finder-spacing: 1rem;
   background-color: var(--finder-bg-color);
   padding: 2rem 0;
@@ -105,6 +106,12 @@
   line-height: 1.5;
   margin-top: 0.5rem;
   text-align: left; /* Ensure left alignment */
+}
+
+.factory-finder .highlight {
+  background-color: var(--finder-highlight-bg);
+  font-weight: bold;
+  padding: 0 0.1em; /* Subtle padding around highlight */
 }
 
 .factory-finder .no-results {

@@ -13,6 +13,45 @@ import {
 } from '../../scripts/aem.js';
 
 /**
+ * Highlights matching text in an element's innerHTML.
+ * @param {Element} element The element to highlight in.
+ * @param {string} query The search term to highlight.
+ * @returns {void}
+ */
+function highlightText(element, query) {
+  if (!query.trim()) {
+    // Clear highlights
+    element.querySelectorAll('.highlight').forEach((span) => {
+      const parent = span.parentNode;
+      parent.replaceChild(document.createTextNode(span.textContent), span);
+    });
+    return;
+  }
+
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+
+  const fragments = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const text = node.textContent;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    if (regex.test(text)) {
+      const highlighted = text.replace(regex, '<span class="highlight">$1</span>');
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = highlighted;
+      fragments.push(...Array.from(tempDiv.childNodes));
+      node.parentNode.replaceChild(tempDiv, node);
+      [...tempDiv.childNodes].forEach((frag) => fragments.push(frag));
+    }
+  }
+}
+
+/**
  * Extracts factory code from heading (e.g., "01" from "(01) COMPANY").
  * @param {string} heading The heading text.
  * @returns {string} The code or empty string.
@@ -23,7 +62,7 @@ function extractCode(heading) {
 }
 
 /**
- * Filters factory items based on search query, prioritizing code match.
+ * Filters factory items based on search query, prioritizing code match, and applies highlighting.
  * @param {Element} container The container of factory items.
  * @param {string} query The search term.
  */
@@ -32,8 +71,13 @@ function filterFactories(container, query) {
   let visibleCount = 0;
   const lowerQuery = query.toLowerCase().trim();
 
+  // Clear all previous highlights
+  items.forEach((item) => {
+    highlightText(item, ''); // Clears highlights
+  });
+
   if (lowerQuery === '') {
-    // Show all if empty
+    // Show all if empty (no highlights)
     items.forEach((item) => {
       item.classList.remove('hidden');
       visibleCount++;
@@ -48,6 +92,9 @@ function filterFactories(container, query) {
       if (matches) {
         item.classList.remove('hidden');
         visibleCount++;
+        // Apply highlighting to visible item
+        highlightText(item.querySelector('.factory-heading'), query);
+        highlightText(item.querySelector('.factory-addresses'), query);
       } else {
         item.classList.add('hidden');
       }
@@ -69,21 +116,21 @@ function filterFactories(container, query) {
  */
 function setupSearch(input, button, container) {
   const handleSearch = () => {
-    const query = input.value.trim();
+    const query = input.value;
     filterFactories(container, query);
   };
 
   // Real-time on typing
   input.addEventListener('input', handleSearch);
 
-  // Manual trigger on button click (prevents default if form, but not needed here)
+  // Manual trigger on button click
   button.addEventListener('click', (e) => {
-    e.preventDefault(); // Ensure no page reload
+    e.preventDefault();
     handleSearch();
-    input.focus(); // Refocus input after click
+    input.focus();
   });
 
-  // Initial: show all
+  // Initial: show all, no highlights
   handleSearch();
 }
 
