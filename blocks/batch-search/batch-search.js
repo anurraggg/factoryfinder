@@ -1,10 +1,17 @@
 /*
- * Batch Search Block (AEM EDS Compatible, Fixed Header Issue)
- * Filters content in a 2-column table based on a search input.
+ * Batch Search Block (AEM EDS Compatible)
+ * Enables client-side search across tabular data.
+ * Google Docs structure:
+ * Row 1: Search input placeholder
+ * Row 2: Button text
+ * Row 3+: Result rows (2 columns: heading | address)
  */
 
 import { sampleRUM } from '../../scripts/aem.js';
 
+/**
+ * Debounce utility — delays function calls for smoother search
+ */
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -13,6 +20,9 @@ function debounce(func, wait) {
   };
 }
 
+/**
+ * Filters result items by the search query
+ */
 function performSearch(block, query) {
   const results = block.querySelectorAll('.result-item');
   const noResults = block.querySelector('.no-results');
@@ -32,6 +42,9 @@ function performSearch(block, query) {
   sampleRUM('search-performed', { query, resultsFound: found });
 }
 
+/**
+ * Builds a single result item
+ */
 function buildResultItem(row) {
   const resultDiv = document.createElement('div');
   resultDiv.classList.add('result-item');
@@ -54,8 +67,11 @@ function buildResultItem(row) {
   return resultDiv;
 }
 
+/**
+ * Main decorator for the batch-search block
+ */
 export default function decorate(block) {
-  let rows = [...block.querySelectorAll(':scope > div')];
+  const rows = [...block.querySelectorAll(':scope > div')];
 
   if (rows.length === 0) {
     console.warn('Batch Search block has no rows; creating minimal defaults.');
@@ -67,18 +83,7 @@ export default function decorate(block) {
     return;
   }
 
-  // 🧹 Clean header / extra rows that shouldn't be parsed
-  rows = rows.filter((row) => {
-    const firstCellText = row.querySelector('div')?.textContent.trim().toLowerCase();
-    // remove header-like rows or empty ones
-    return (
-      firstCellText &&
-      !firstCellText.includes('heading') &&
-      !firstCellText.includes('address')
-    );
-  });
-
-  // 🩹 If any row has more than one column before search input, skip it
+  // 🩹 Skip header if first row has more than one column (heading | address)
   if (rows.length && rows[0].children.length > 1) {
     rows.shift();
   }
@@ -87,6 +92,7 @@ export default function decorate(block) {
   const buttonRow = rows[1];
   const hasResults = rows.length > 2;
 
+  // 🔍 Build search input + button
   const searchForm = document.createElement('div');
   searchForm.classList.add('search-form');
 
@@ -104,9 +110,11 @@ export default function decorate(block) {
   button.setAttribute('aria-label', 'Search');
   searchForm.appendChild(button);
 
+  // 🧹 Clear block and rebuild
   block.innerHTML = '';
   block.appendChild(searchForm);
 
+  // 🗂️ Build result list
   const resultsContainer = document.createElement('div');
   resultsContainer.classList.add('results-container');
 
@@ -124,6 +132,7 @@ export default function decorate(block) {
 
   block.appendChild(resultsContainer);
 
+  // 🚫 No-results message
   let noResults = block.querySelector('.no-results');
   if (!noResults) {
     noResults = document.createElement('div');
@@ -133,6 +142,7 @@ export default function decorate(block) {
     resultsContainer.appendChild(noResults);
   }
 
+  // 🕵️ Hook up search behavior
   const debouncedSearch = debounce((query) => performSearch(block, query), 300);
   const handleSearch = () => {
     const query = input.value.trim().toLowerCase();
@@ -142,5 +152,6 @@ export default function decorate(block) {
   input.addEventListener('input', handleSearch);
   button.addEventListener('click', handleSearch);
 
+  // Show all results initially
   performSearch(block, '');
 }
