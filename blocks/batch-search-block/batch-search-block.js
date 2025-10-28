@@ -3,21 +3,52 @@
  * @param {Element} block The block element
  */
  export default async function decorate(block) {
-  const input = block.querySelector('input');
-  const button = block.querySelector('button');
-  const items = [...block.querySelectorAll(':scope .result-item')];
-
-  if (!input || !button || items.length === 0) {
-    console.warn('Batch search block missing required elements');
+  // Parse rows as divs (AEM table structure)
+  const rows = [...block.querySelectorAll(':scope > div')];
+  if (rows.length < 1) {
+    console.warn('Batch search block has no content');
     return;
   }
 
-  // Add A11y attributes
-  input.setAttribute('aria-label', 'Search items');
-  button.setAttribute('aria-label', 'Search');
-  input.setAttribute('type', 'search');
+  // Build search UI if not present
+  let input = block.querySelector('input');
+  let button = block.querySelector('button');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'search';
+    input.placeholder = 'Search items...';
+    input.setAttribute('aria-label', 'Search items');
+    block.insertBefore(input, block.firstChild);
+  }
+  if (!button) {
+    button = document.createElement('button');
+    button.textContent = 'Search';
+    button.setAttribute('aria-label', 'Search');
+    block.insertBefore(button, input.nextSibling);
+  }
 
-  // No results element (create if not present)
+  // Parse items from rows (skip header if present; use textContent as item)
+  const items = [];
+  for (let i = 1; i < rows.length; i += 1) { // Skip row 0 (header)
+    const cols = [...rows[i].querySelectorAll(':scope > div')];
+    if (cols.length > 0) {
+      const itemText = cols[0]?.textContent.trim() || ''; // Assume col 0 is item name
+      if (itemText) {
+        const item = document.createElement('div');
+        item.className = 'result-item';
+        item.textContent = itemText;
+        items.push(item);
+        block.appendChild(item);
+      }
+    }
+  }
+
+  if (items.length === 0) {
+    console.warn('No items found in batch search block table');
+    return;
+  }
+
+  // No results element
   let noResults = block.querySelector('.no-results');
   if (!noResults) {
     noResults = document.createElement('div');
