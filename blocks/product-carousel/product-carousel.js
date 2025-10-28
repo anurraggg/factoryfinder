@@ -1,5 +1,4 @@
 // product-carousel.js
-// eslint-disable-next-line import/no-cycle
 import { createOptimizedPicture } from '../../scripts/aem.js';
 
 /**
@@ -7,9 +6,16 @@ import { createOptimizedPicture } from '../../scripts/aem.js';
  * @param {Element} block The block element
  */
 export default async function decorate(block) {
+  console.log('Starting product-carousel decorate'); // Debug log
+
   // Extract title and slides from block rows
   const rows = [...block.querySelectorAll(':scope > div')];
-  if (rows.length < 2) return; // Need title + at least 1 slide
+  console.log(`Found ${rows.length} rows`); // Debug
+
+  if (rows.length < 2) {
+    console.log('Too few rows, skipping'); // Debug
+    return;
+  }
 
   const titleRow = rows[0];
   const titleCell = titleRow.querySelector('div');
@@ -21,32 +27,49 @@ export default async function decorate(block) {
   for (let i = 1; i < rows.length; i += 1) {
     const row = rows[i];
     const cells = [...row.querySelectorAll('div')];
-    if (cells.length >= 3) {
+    console.log(`Row ${i}: ${cells.length} cells`); // Debug
+    if (cells.length >= 2) { // Relaxed: >=2 (title + desc; image optional)
       const imgCell = cells[0];
       const titleCellSlide = cells[1];
-      const descCell = cells[2];
+      const descCell = cells[2] || { innerHTML: '' }; // Fallback empty desc
 
-      // Optimize image
+      // Optimize image if present
+      let imageHTML = '';
       const img = imgCell.querySelector('img');
       if (img) {
         const alt = img.alt || 'Product Image';
         const src = img.src;
         imgCell.innerHTML = '';
-        imgCell.appendChild(createOptimizedPicture(src, alt, false, [
+        const picture = createOptimizedPicture(src, alt, false, [
           { media: '(min-width: 900px)', width: '400' },
           { width: '300' },
-        ]));
+        ]);
+        imageHTML = picture.outerHTML;
+      } else {
+        imageHTML = imgCell.innerHTML; // Fallback to raw if no <img>
       }
 
       slides.push({
-        image: imgCell.innerHTML,
+        image: imageHTML,
         title: titleCellSlide.innerHTML,
         description: descCell.innerHTML,
       });
+      console.log(`Added slide ${slides.length}: ${titleCellSlide.innerHTML.substring(0, 20)}...`); // Debug
+    } else {
+      console.log(`Skipping row ${i}: too few cells`); // Debug
     }
   }
 
-  if (slides.length < 1) return;
+  console.log(`Built ${slides.length} slides`); // Debug
+  if (slides.length < 1) {
+    console.log('No slides, keeping original content'); // Debug
+    return;
+  }
+
+  const totalSlides = slides.length;
+
+  // Build extended slides for infinite: [last, ...slides, first]
+  const extendedSlides = [slides[totalSlides - 1], ...slides, slides[0]];
 
   // Build DOM structure
   const slidesContainer = document.createElement('div');
@@ -54,10 +77,7 @@ export default async function decorate(block) {
   slidesContainer.setAttribute('role', 'list');
   slidesContainer.setAttribute('aria-label', 'Product carousel');
 
-  // Clone slides for infinite loop (first at end, last at start)
-  const totalSlides = slides.length;
-  const extendedSlides = [...slides, slides[0]]; // Append first for loop
-  extendedSlides.forEach((slide, index) => {
+  extendedSlides.forEach((slide) => {
     const slideEl = document.createElement('div');
     slideEl.className = 'product-carousel__slide';
     slideEl.setAttribute('role', 'listitem');
@@ -94,93 +114,136 @@ export default async function decorate(block) {
   const dots = [...dotsContainer.querySelectorAll('.product-carousel__dot')];
 
   // Assemble block
-  block.className = 'product-carousel';
+  block.className = 'product-carousel'; // Override to ensure class
   block.innerHTML = '';
-  block.appendChild(titleCell);
+  block.append(titleRow); // Append whole title row for structure
   block.appendChild(slidesContainer);
   block.appendChild(nav);
   block.appendChild(dotsContainer);
 
+  console.log('Block assembled, initializing interactions'); // Debug
+
   // State
-  let currentIndex = 0;
+  let currentExtendedIndex = 1; // Start at first real slide (index 1 in extended)
   let isTransitioning = false;
   let autoplayInterval;
+  let realCurrentIndex = 0; // For dots: 0 to total-1
 
   // Update dots
-  function updateDots() {
+  function updateDots(realIndex) {
     dots.forEach((dot, i) => {
-      dot.setAttribute('aria-selected', i === currentIndex);
-      dot.classList.toggle('product-carousel__dot--active', i === currentIndex);
+      const active = i === realIndex;
+      dot.setAttribute('aria-selected', active);
+      dot.classList.toggle('product-carousel__dot--active', active);
     });
   }
 
-  // Slide to index
-  async function slideTo(index) {
-    if (isTransitioning || index === currentIndex) return;
+  // Direct set to real slide index (for dots/keyboard)
+  function setToRealIndex(targetReal) {
+    if (isTransitioning || targetReal === realCurrentIndex) return;
     isTransitioning = true;
 
-    const translateX = -index * 100;
+    const targetExtended = targetReal + 1;
+    const translateX = -targetExtended * 100;
     slidesContainer.style.transform = `translateX(${translateX}%)`;
 
-    // Handle infinite loop: reset to 0 after last slide
-    if (index === totalSlides) {
-      await new Promise((resolve) => setTimeout(resolve, 300)); // Wait for transition
-      currentIndex = 0;
-      slidesContainer.style.transition = 'none';
-      slidesContainer.style.transform = `translateX(0%)`;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      slidesContainer.style.transition = '';
+    currentExtendedIndex = targetExtended;
+    realCurrentIndex = targetReal;
+    updateDots(realCurrentIndex);
+
+    isTransitioning = false;
+  }
+
+  // Slide by direction (+1 next, -1 prev)
+  async function slideByDirection(direction) {
+    if (isTransitioning) return;
+    isTransitioning = true;
+
+    let newExtendedIndex = currentExtendedIndex + direction;
+    const translateX = -newExtendedIndex * 100;
+    slidesContainer.style.transform = `translateX(${translateX}%)`;
+    currentExtendedIndex = newExtendedIndex;
+
+    const extendedLength = totalSlides + 2;
+
+    let needsReset = false;
+    let resetTo = 0;
+
+    if (newExtendedIndex === extendedLength - 1) { // Hit appended first (after last)
+      needsReset = true;
+      resetTo = 1; // Back to first real
+      realCurrentIndex = 0;
+    } else if (newExtendedIndex === 0) { // Hit prepended last (before first)
+      needsReset = true;
+      resetTo = totalSlides; // To last real
+      realCurrentIndex = totalSlides - 1;
     } else {
-      currentIndex = index;
+      realCurrentIndex = (newExtendedIndex - 1 + totalSlides) % totalSlides; // Modulo for safety
     }
 
-    updateDots();
+    updateDots(realCurrentIndex);
+
+    if (needsReset) {
+      // Wait for transition
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      slidesContainer.style.transition = 'none';
+      slidesContainer.style.transform = `translateX(${-resetTo * 100}%)`;
+      currentExtendedIndex = resetTo;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      slidesContainer.style.transition = '';
+    }
+
     isTransitioning = false;
+    console.log(`Slid ${direction > 0 ? 'next' : 'prev'} to real ${realCurrentIndex}`); // Debug
   }
 
   // Arrow event listeners
   const nextBtn = block.querySelector('.product-carousel__arrow:not(.--left)');
-  const prevBtn = block.querySelector('.product-carousel__arrow.--left');
+  const prevBtn = block.querySelector('.product-carousel__arrow.--left);
+  nextBtn.addEventListener('click', () => slideByDirection(1));
+  prevBtn.addEventListener('click', () => slideByDirection(-1));
 
-  nextBtn.addEventListener('click', () => slideTo(currentIndex + 1));
-  prevBtn.addEventListener('click', () => slideTo(currentIndex - 1 || totalSlides));
-
-  // Dots event listeners
+  // Dots: direct set
   dots.forEach((dot, i) => {
-    dot.addEventListener('click', () => slideTo(i));
+    dot.addEventListener('click', () => setToRealIndex(i));
   });
 
-  // Keyboard navigation
+  // Keyboard
+  block.setAttribute('tabindex', '0'); // Focusable
   block.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') slideTo(currentIndex + 1);
-    if (e.key === 'ArrowLeft') slideTo(currentIndex - 1 || totalSlides);
+    if (e.key === 'ArrowRight') slideByDirection(1);
+    if (e.key === 'ArrowLeft') slideByDirection(-1);
   });
 
-  // Touch/swipe support
+  // Touch/swipe
   let startX = 0;
   let endX = 0;
-  slidesContainer.addEventListener('touchstart', (e) => {
-    startX = e.touches[0].clientX;
-  });
+  slidesContainer.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
   slidesContainer.addEventListener('touchend', (e) => {
     endX = e.changedTouches[0].clientX;
     const diff = startX - endX;
-    if (Math.abs(diff) > 50) { // Threshold for swipe
-      if (diff > 0) slideTo(currentIndex + 1);
-      else slideTo(currentIndex - 1 || totalSlides);
+    if (Math.abs(diff) > 50) {
+      slideByDirection(diff > 0 ? 1 : -1);
     }
   });
 
-  // Autoplay (default 3s)
+  // Autoplay
   function startAutoplay() {
-    autoplayInterval = setInterval(() => slideTo(currentIndex + 1), 3000);
+    autoplayInterval = setInterval(() => slideByDirection(1), 3000);
+  }
+  function stopAutoplay() {
+    clearInterval(autoplayInterval);
   }
   startAutoplay();
 
-  // Pause on hover
-  block.addEventListener('mouseenter', () => clearInterval(autoplayInterval));
+  // Pause on hover/interaction
+  block.addEventListener('mouseenter', stopAutoplay);
   block.addEventListener('mouseleave', startAutoplay);
+  [nextBtn, prevBtn, ...dots].forEach(el => el.addEventListener('click', stopAutoplay)); // Pause on manual
 
   // Initial setup
-  updateDots();
+  slidesContainer.style.transform = `translateX(${-currentExtendedIndex * 100}%)`;
+  updateDots(realCurrentIndex);
+
+  console.log('Product carousel initialized!'); // Debug
 }
