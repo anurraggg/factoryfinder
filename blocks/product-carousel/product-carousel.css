@@ -1,0 +1,158 @@
+/* product-carousel.css */
+.product-carousel {
+    --carousel-height: 500px;
+    --slide-transition: transform 0.3s ease-in-out;
+    --arrow-size: 40px;
+    --dot-size: 8px;
+    --bg-color: #fafafa;
+    --text-color: #333;
+    --accent-color: #ff6b35;
+  
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: var(--bg-color);
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+  }
+  
+  .product-carousel__title {
+    text-align: center;
+    padding: 20px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-color);
+    background: white;
+    margin: 0;
+  }
+  
+  .product-carousel__slides {
+    display: flex;
+    transition: var(--slide-transition);
+    height: var(--carousel-height);
+  }
+  
+  .product-carousel__slide {
+    min-width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 40px;
+    box-sizing: border-box;
+    background: white;
+  }
+  
+  .product-carousel__slide-image {
+    flex: 0 0 40%;
+    max-width: 300px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .product-carousel__slide-content {
+    flex: 1;
+    padding-left: 40px;
+    color: var(--text-color);
+  }
+  
+  .product-carousel__slide-title {
+    font-size: 1.8rem;
+    margin: 0 0 16px;
+    line-height: 1.2;
+  }
+  
+  .product-carousel__slide-description {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    opacity: 0.9;
+  }
+  
+  .product-carousel__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    pointer-events: none;
+  }
+  
+  .product-carousel__arrow {
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    width: var(--arrow-size);
+    height: var(--arrow-size);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: background 0.2s;
+    pointer-events: all;
+    color: var(--accent-color);
+  }
+  
+  .product-carousel__arrow:hover {
+    background: white;
+  }
+  
+  .product-carousel__arrow--left {
+    order: -1;
+  }
+  
+  .product-carousel__dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    background: white;
+  }
+  
+  .product-carousel__dot {
+    width: var(--dot-size);
+    height: var(--dot-size);
+    border-radius: 50%;
+    background: #ddd;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .product-carousel__dot--active,
+  .product-carousel__dot:hover {
+    background: var(--accent-color);
+  }
+  
+  @media (max-width: 900px) {
+    .product-carousel__slide {
+      flex-direction: column;
+      text-align: center;
+      padding: 20px;
+    }
+  
+    .product-carousel__slide-image {
+      max-width: 250px;
+      margin-bottom: 20px;
+    }
+  
+    .product-carousel__slide-content {
+      padding-left: 0;
+    }
+  
+    .product-carousel__nav {
+      display: none; /* Hide arrows on mobile; use swipe */
+    }
+  }
+  
+  @media (max-width: 600px) {
+    .product-carousel {
+      --carousel-height: 400px;
+    }
+  
+    .product-carousel__slide-title {
+      font-size: 1.4rem;
+    }
+  }
