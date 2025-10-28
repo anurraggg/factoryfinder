@@ -29,24 +29,35 @@ export default async function decorate(block) {
     const cells = [...row.querySelectorAll('div')];
     console.log(`Row ${i}: ${cells.length} cells`); // Debug
     if (cells.length >= 2) { // Relaxed: >=2 (title + desc; image optional)
-      const imgCell = cells[0];
+      let imgCell = cells[0];
       const titleCellSlide = cells[1];
       const descCell = cells[2] || { innerHTML: '' }; // Fallback empty desc
 
-      // Optimize image if present
+      // NEW: Auto-convert plain URL to <img> if no existing img
+      const cellText = imgCell.innerHTML.trim();
       let imageHTML = '';
-      const img = imgCell.querySelector('img');
+      let img = imgCell.querySelector('img');
+      if (!img && cellText.startsWith('http') && cellText.includes('.')) { // Likely a URL
+        console.log(`Auto-converting URL in row ${i}: ${cellText.substring(0, 50)}...`); // Debug
+        img = document.createElement('img');
+        img.src = cellText;
+        img.alt = 'Product Image'; // Default alt
+        imgCell.innerHTML = ''; // Clear text
+        imgCell.appendChild(img);
+      }
+
+      // Optimize image if present
+      img = imgCell.querySelector('img'); // Re-query after possible creation
       if (img) {
         const alt = img.alt || 'Product Image';
         const src = img.src;
-        imgCell.innerHTML = '';
         const picture = createOptimizedPicture(src, alt, false, [
           { media: '(min-width: 900px)', width: '400' },
           { width: '300' },
         ]);
         imageHTML = picture.outerHTML;
       } else {
-        imageHTML = imgCell.innerHTML; // Fallback to raw if no <img>
+        imageHTML = imgCell.innerHTML; // Fallback to raw content
       }
 
       slides.push({
@@ -199,7 +210,7 @@ export default async function decorate(block) {
 
   // Arrow event listeners
   const nextBtn = block.querySelector('.product-carousel__arrow:not(.--left)');
-  const prevBtn = block.querySelector('.product-carousel__arrow--left'); // Fixed quote!
+  const prevBtn = block.querySelector('.product-carousel__arrow--left');
   nextBtn.addEventListener('click', () => slideByDirection(1));
   prevBtn.addEventListener('click', () => slideByDirection(-1));
 
