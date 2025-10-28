@@ -21,20 +21,22 @@ function debounce(func, wait) {
 }
 
 /**
- * Highlights matched text inside an element
+ * Highlights matching text inside elements
  */
-function highlightText(element, query) {
-  const text = element.textContent;
+function highlightMatch(element, query) {
   if (!query) {
-    element.innerHTML = text;
+    // Clear highlights
+    element.innerHTML = element.textContent;
     return;
   }
+
   const regex = new RegExp(`(${query})`, 'gi');
-  element.innerHTML = text.replace(regex, '<mark style="background: yellow;">$1</mark>');
+  const text = element.textContent;
+  element.innerHTML = text.replace(regex, '<mark>$1</mark>');
 }
 
 /**
- * Filters and highlights result items by the search query
+ * Filters result items by the search query and highlights matches
  */
 function performSearch(block, query) {
   const results = block.querySelectorAll('.result-item');
@@ -43,16 +45,15 @@ function performSearch(block, query) {
 
   results.forEach((item) => {
     const text = item.textContent.toLowerCase();
-    const match = text.includes(query);
-    if (match) {
+    if (text.includes(query)) {
       item.style.display = 'block';
       found += 1;
 
-      // Highlight matching text inside heading and address
+      // Highlight inside both heading and address
       const heading = item.querySelector('.result-heading');
       const address = item.querySelector('.result-address');
-      if (heading) highlightText(heading, query);
-      if (address) highlightText(address, query);
+      if (heading) highlightMatch(heading, query);
+      if (address) highlightMatch(address, query);
     } else {
       item.style.display = 'none';
     }
@@ -73,13 +74,15 @@ function buildResultItem(row) {
   if (cols.length > 0) {
     const headingDiv = document.createElement('div');
     headingDiv.classList.add('result-heading');
-    headingDiv.textContent = cols[0].textContent.trim();
+    // preserve line breaks
+    headingDiv.innerHTML = cols[0].textContent.trim().replace(/\n/g, '<br>');
     resultDiv.appendChild(headingDiv);
 
     if (cols.length > 1) {
       const addressDiv = document.createElement('div');
       addressDiv.classList.add('result-address');
-      addressDiv.textContent = cols[1].textContent.trim();
+      // preserve line breaks
+      addressDiv.innerHTML = cols[1].textContent.trim().replace(/\n/g, '<br>');
       resultDiv.appendChild(addressDiv);
     }
   }
