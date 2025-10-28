@@ -9,9 +9,7 @@
 
 import { sampleRUM } from '../../scripts/aem.js';
 
-/**
- * Debounce utility — delays function calls for smoother search
- */
+/** Debounce utility */
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -20,36 +18,47 @@ function debounce(func, wait) {
   };
 }
 
-/**
- * Highlights matching text inside elements
- */
-function highlightMatch(element, query) {
-  if (!query) {
-    // Clear highlights
-    element.innerHTML = element.textContent;
-    return;
-  }
-
-  const regex = new RegExp(`(${query})`, 'gi');
-  const text = element.textContent;
-  element.innerHTML = text.replace(regex, '<mark>$1</mark>');
+/** Escape regex special chars in user query */
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
- * Filters result items by the search query and highlights matches
+ * Highlights matched text inside an element using its stored original text.
+ * Preserves original line breaks (stored in dataset.original).
+ */
+function highlightMatch(element, query) {
+  const original = element.dataset.original || element.textContent || '';
+  const originalHtml = original.replace(/\n/g, '<br>');
+  if (!query) {
+    element.innerHTML = originalHtml;
+    return;
+  }
+  const esc = escapeRegExp(query);
+  const regex = new RegExp(`(${esc})`, 'gi');
+  const highlighted = originalHtml.replace(regex, '<mark class="eic-highlight">$1</mark>');
+  element.innerHTML = highlighted;
+}
+
+/**
+ * Filters and highlights result items by the search query
+ * `query` is the raw user input (not lowercased). Matching is case-insensitive.
  */
 function performSearch(block, query) {
+  const qLower = (query || '').toLowerCase();
   const results = block.querySelectorAll('.result-item');
   const noResults = block.querySelector('.no-results');
   let found = 0;
 
   results.forEach((item) => {
-    const text = item.textContent.toLowerCase();
-    if (text.includes(query)) {
+    const text = item.dataset.searchText || item.textContent;
+    const match = text.toLowerCase().includes(qLower);
+
+    if (match || qLower === '') {
       item.style.display = 'block';
       found += 1;
 
-      // Highlight inside both heading and address
+      // highlight within stored elements
       const heading = item.querySelector('.result-heading');
       const address = item.querySelector('.result-address');
       if (heading) highlightMatch(heading, query);
@@ -63,38 +72,44 @@ function performSearch(block, query) {
   sampleRUM('search-performed', { query, resultsFound: found });
 }
 
-/**
- * Builds a single result item
- */
+/** Build result DOM while preserving original text in data attributes */
 function buildResultItem(row) {
   const resultDiv = document.createElement('div');
   resultDiv.classList.add('result-item');
 
   const cols = [...row.querySelectorAll('div')];
+  let searchTextParts = [];
+
   if (cols.length > 0) {
     const headingDiv = document.createElement('div');
     headingDiv.classList.add('result-heading');
-    // preserve line breaks
-    headingDiv.innerHTML = cols[0].textContent.trim().replace(/\n/g, '<br>');
+    const headingText = cols[0].textContent.trim();
+    // store original text for reliable highlights and line-break preserving
+    headingDiv.dataset.original = headingText;
+    headingDiv.innerHTML = headingText.replace(/\n/g, '<br>');
     resultDiv.appendChild(headingDiv);
-
-    if (cols.length > 1) {
-      const addressDiv = document.createElement('div');
-      addressDiv.classList.add('result-address');
-      // preserve line breaks
-      addressDiv.innerHTML = cols[1].textContent.trim().replace(/\n/g, '<br>');
-      resultDiv.appendChild(addressDiv);
-    }
+    searchTextParts.push(headingText);
   }
+
+  if (cols.length > 1) {
+    const addressDiv = document.createElement('div');
+    addressDiv.classList.add('result-address');
+    const addressText = cols[1].textContent.trim();
+    addressDiv.dataset.original = addressText;
+    addressDiv.innerHTML = addressText.replace(/\n/g, '<br>');
+    resultDiv.appendChild(addressDiv);
+    searchTextParts.push(addressText);
+  }
+
+  // store a combined searchable text (lowercase) for fast matching
+  resultDiv.dataset.searchText = searchTextParts.join(' ').trim();
 
   return resultDiv;
 }
 
-/**
- * Main decorator for the batch-search block
- */
+/** Main decorator */
 export default function decorate(block) {
-  const rows = [...block.querySelectorAll(':scope > div')];
+  let rows = [...block.querySelectorAll(':scope > div')];
 
   if (rows.length === 0) {
     console.warn('Batch Search block has no rows; creating minimal defaults.');
@@ -106,38 +121,44 @@ export default function decorate(block) {
     return;
   }
 
-  // 🩹 Skip header if first row has more than one column (heading | address)
+  // If first row looks like header (2+ cols), remove it so config rows line up
   if (rows.length && rows[0].children.length > 1) {
     rows.shift();
   }
+
+  // Skip any accidental header text rows like "heading" / "address"
+  rows = rows.filter((r) => {
+    const t = r.querySelector('div')?.textContent?.trim()?.toLowerCase() || '';
+    return !(t === 'heading' || t === 'address' || t === '');
+  });
 
   const inputRow = rows[0];
   const buttonRow = rows[1];
   const hasResults = rows.length > 2;
 
-  // 🔍 Build search input + button
+  // Build search form
   const searchForm = document.createElement('div');
   searchForm.classList.add('search-form');
 
   const input = document.createElement('input');
   input.type = 'text';
   input.placeholder =
-    inputRow?.querySelector('div')?.textContent.trim() || 'Search...';
+    (inputRow?.querySelector('div')?.textContent?.trim()) || 'Search...';
   input.setAttribute('aria-label', 'Search input');
   searchForm.appendChild(input);
 
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent =
-    buttonRow?.querySelector('div')?.textContent.trim() || 'Search';
+    (buttonRow?.querySelector('div')?.textContent?.trim()) || 'Search';
   button.setAttribute('aria-label', 'Search');
   searchForm.appendChild(button);
 
-  // 🧹 Clear block and rebuild
+  // rebuild block
   block.innerHTML = '';
   block.appendChild(searchForm);
 
-  // 🗂️ Build result list
+  // results container
   const resultsContainer = document.createElement('div');
   resultsContainer.classList.add('results-container');
 
@@ -155,7 +176,7 @@ export default function decorate(block) {
 
   block.appendChild(resultsContainer);
 
-  // 🚫 No-results message
+  // no-results element
   let noResults = block.querySelector('.no-results');
   if (!noResults) {
     noResults = document.createElement('div');
@@ -165,16 +186,16 @@ export default function decorate(block) {
     resultsContainer.appendChild(noResults);
   }
 
-  // 🕵️ Hook up search behavior
+  // search wiring
   const debouncedSearch = debounce((query) => performSearch(block, query), 300);
   const handleSearch = () => {
-    const query = input.value.trim().toLowerCase();
-    debouncedSearch(query);
+    const raw = input.value.trim();
+    debouncedSearch(raw);
   };
 
   input.addEventListener('input', handleSearch);
   button.addEventListener('click', handleSearch);
 
-  // Show all results initially
+  // initial show all
   performSearch(block, '');
 }

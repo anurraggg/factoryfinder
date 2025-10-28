@@ -54,3 +54,10 @@
   color: #999;
   margin-top: 1rem;
 }
+
+.eic-highlight {
+  background: #fff176; /* soft yellow */
+  font-weight: 600;
+  padding: 0 2px;
+  border-radius: 2px;
+}
