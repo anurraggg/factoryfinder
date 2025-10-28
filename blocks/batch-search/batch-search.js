@@ -1,7 +1,8 @@
 /*
  * Batch Search Block
  * Enables client-side search across a list of result items within the block.
- * Authors structure: Input row, button row, followed by result rows (e.g., divs with text).
+ * Authors structure: Optional input/button rows, followed by result rows (e.g., divs with text).
+ * If input/button missing, dynamically creates a basic search form.
  * Filters results in real-time on input/button click.
  * Debounced for performance (300ms delay on input).
  */
@@ -55,16 +56,53 @@ function performSearch(block, query) {
 }
 
 /**
+ * Creates a default search form if missing.
+ * @param {Element} block The batch-search block
+ * @returns {Object} {input, button} The created elements
+ */
+function createDefaultSearchForm(block) {
+  // Clear block and create form structure
+  block.innerHTML = `
+    <div class="search-form">
+      <input type="text" placeholder="Search..." aria-label="Search input">
+      <button type="button" aria-label="Search">Search</button>
+    </div>
+    <div class="no-results" style="display: none;">No results found.</div>
+  `;
+
+  const input = block.querySelector('input');
+  const button = block.querySelector('button');
+  const noResults = block.querySelector('.no-results');
+
+  return { input, button, noResults };
+}
+
+/**
  * Decorates the block: Sets up input/button listeners with debounced search.
+ * Dynamically creates form if missing for better authoring flexibility.
  * @param {Element} block The batch-search block
  */
 export default function decorate(block) {
-  const input = block.querySelector('input');
-  const button = block.querySelector('button');
+  let input = block.querySelector('input');
+  let button = block.querySelector('button');
+  let noResults = block.querySelector('.no-results');
 
+  // If missing, create default form (assumes results are after)
   if (!input || !button) {
-    console.warn('Batch Search block missing input or button');
-    return;
+    console.warn('Batch Search block missing input or button; creating defaults.');
+    const formElements = createDefaultSearchForm(block);
+
+    // Append existing children (results) after the new form
+    const searchForm = block.querySelector('.search-form');
+    Array.from(block.children).forEach((child) => {
+      if (child !== searchForm && !child.classList.contains('no-results')) {
+        searchForm.after(child);
+      }
+    });
+
+    input = formElements.input;
+    button = formElements.button;
+    noResults = formElements.noResults;
   }
 
   const debouncedSearch = debounce((query) => performSearch(block, query), 300);
@@ -77,9 +115,8 @@ export default function decorate(block) {
   input.addEventListener('input', handleSearch);
   button.addEventListener('click', handleSearch);
 
-  // Initial hide of no-results if present
-  const noResults = block.querySelector('.no-results');
-  if (noResults) {
+  // Initial hide of no-results if present and no query
+  if (noResults && input.value.trim() === '') {
     noResults.style.display = 'none';
   }
 }
