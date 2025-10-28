@@ -199,7 +199,7 @@ export default async function decorate(block) {
 
   // Arrow event listeners
   const nextBtn = block.querySelector('.product-carousel__arrow:not(.--left)');
-  const prevBtn = block.querySelector('.product-carousel__arrow.--left);
+  const prevBtn = block.querySelector('.product-carousel__arrow.--left)');
   nextBtn.addEventListener('click', () => slideByDirection(1));
   prevBtn.addEventListener('click', () => slideByDirection(-1));
 
