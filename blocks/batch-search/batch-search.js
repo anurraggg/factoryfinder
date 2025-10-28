@@ -21,7 +21,20 @@ function debounce(func, wait) {
 }
 
 /**
- * Filters result items by the search query
+ * Highlights matched text inside an element
+ */
+function highlightText(element, query) {
+  const text = element.textContent;
+  if (!query) {
+    element.innerHTML = text;
+    return;
+  }
+  const regex = new RegExp(`(${query})`, 'gi');
+  element.innerHTML = text.replace(regex, '<mark style="background: yellow;">$1</mark>');
+}
+
+/**
+ * Filters and highlights result items by the search query
  */
 function performSearch(block, query) {
   const results = block.querySelectorAll('.result-item');
@@ -30,9 +43,16 @@ function performSearch(block, query) {
 
   results.forEach((item) => {
     const text = item.textContent.toLowerCase();
-    if (text.includes(query)) {
+    const match = text.includes(query);
+    if (match) {
       item.style.display = 'block';
       found += 1;
+
+      // Highlight matching text inside heading and address
+      const heading = item.querySelector('.result-heading');
+      const address = item.querySelector('.result-address');
+      if (heading) highlightText(heading, query);
+      if (address) highlightText(address, query);
     } else {
       item.style.display = 'none';
     }
