@@ -33,7 +33,7 @@ export default async function decorate(block) {
       const titleCellSlide = cells[1];
       const descCell = cells[2] || { innerHTML: '' }; // Fallback empty desc
 
-      // NEW: Auto-convert plain URL to <img> if no existing img
+      // Auto-convert plain URL to <img> if no existing img
       const cellText = imgCell.innerHTML.trim();
       let imageHTML = '';
       let img = imgCell.querySelector('img');
@@ -162,57 +162,73 @@ export default async function decorate(block) {
     realCurrentIndex = targetReal;
     updateDots(realCurrentIndex);
 
-    isTransitioning = false;
+    setTimeout(() => { isTransitioning = false; }, 300); // Ensure reset
   }
 
   // Slide by direction (+1 next, -1 prev)
   async function slideByDirection(direction) {
-    if (isTransitioning) return;
-    isTransitioning = true;
-
-    let newExtendedIndex = currentExtendedIndex + direction;
-    const translateX = -newExtendedIndex * 100;
-    slidesContainer.style.transform = `translateX(${translateX}%)`;
-    currentExtendedIndex = newExtendedIndex;
-
-    const extendedLength = totalSlides + 2;
-
-    let needsReset = false;
-    let resetTo = 0;
-
-    if (newExtendedIndex === extendedLength - 1) { // Hit appended first (after last)
-      needsReset = true;
-      resetTo = 1; // Back to first real
-      realCurrentIndex = 0;
-    } else if (newExtendedIndex === 0) { // Hit prepended last (before first)
-      needsReset = true;
-      resetTo = totalSlides; // To last real
-      realCurrentIndex = totalSlides - 1;
-    } else {
-      realCurrentIndex = (newExtendedIndex - 1 + totalSlides) % totalSlides; // Modulo for safety
+    if (isTransitioning) {
+      console.log('Transitioning, skipping slide'); // Debug
+      return;
     }
+    try {
+      isTransitioning = true;
+      console.log(`Starting slide ${direction > 0 ? 'next' : 'prev'}`); // Debug
 
-    updateDots(realCurrentIndex);
+      let newExtendedIndex = currentExtendedIndex + direction;
+      const translateX = -newExtendedIndex * 100;
+      slidesContainer.style.transform = `translateX(${translateX}%)`;
+      currentExtendedIndex = newExtendedIndex;
 
-    if (needsReset) {
-      // Wait for transition
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      slidesContainer.style.transition = 'none';
-      slidesContainer.style.transform = `translateX(${-resetTo * 100}%)`;
-      currentExtendedIndex = resetTo;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      slidesContainer.style.transition = '';
+      const extendedLength = totalSlides + 2;
+
+      let needsReset = false;
+      let resetTo = 0;
+
+      if (newExtendedIndex === extendedLength - 1) { // Hit appended first (after last)
+        needsReset = true;
+        resetTo = 1; // Back to first real
+        realCurrentIndex = 0;
+      } else if (newExtendedIndex === 0) { // Hit prepended last (before first)
+        needsReset = true;
+        resetTo = totalSlides; // To last real
+        realCurrentIndex = totalSlides - 1;
+      } else {
+        realCurrentIndex = (newExtendedIndex - 1 + totalSlides) % totalSlides; // Modulo for safety
+      }
+
+      updateDots(realCurrentIndex);
+
+      if (needsReset) {
+        // Wait for transition
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        slidesContainer.style.transition = 'none';
+        slidesContainer.style.transform = `translateX(${-resetTo * 100}%)`;
+        currentExtendedIndex = resetTo;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        slidesContainer.style.transition = '';
+      }
+
+      console.log(`Completed slide to real ${realCurrentIndex}`); // Debug
+    } catch (error) {
+      console.error('Slide error:', error); // Catch any
+    } finally {
+      isTransitioning = false;
     }
-
-    isTransitioning = false;
-    console.log(`Slid ${direction > 0 ? 'next' : 'prev'} to real ${realCurrentIndex}`); // Debug
   }
 
-  // Arrow event listeners
-  const nextBtn = block.querySelector('.product-carousel__arrow:not(.--left)');
-  const prevBtn = block.querySelector('.product-carousel__arrow--left');
-  nextBtn.addEventListener('click', () => slideByDirection(1));
-  prevBtn.addEventListener('click', () => slideByDirection(-1));
+  // NEW: Event delegation for arrows (fallback + logs)
+  block.addEventListener('click', (e) => {
+    if (e.target.matches('.product-carousel__arrow--left')) {
+      console.log('Arrow clicked: prev'); // Debug
+      e.preventDefault();
+      slideByDirection(-1);
+    } else if (e.target.matches('.product-carousel__arrow:not(.product-carousel__arrow--left)')) {
+      console.log('Arrow clicked: next'); // Debug
+      e.preventDefault();
+      slideByDirection(1);
+    }
+  });
 
   // Dots: direct set
   dots.forEach((dot, i) => {
@@ -250,7 +266,7 @@ export default async function decorate(block) {
   // Pause on hover/interaction
   block.addEventListener('mouseenter', stopAutoplay);
   block.addEventListener('mouseleave', startAutoplay);
-  [nextBtn, prevBtn, ...dots].forEach(el => el.addEventListener('click', stopAutoplay)); // Pause on manual
+  dots.forEach(dot => dot.addEventListener('click', stopAutoplay)); // Pause on manual
 
   // Initial setup
   slidesContainer.style.transform = `translateX(${-currentExtendedIndex * 100}%)`;

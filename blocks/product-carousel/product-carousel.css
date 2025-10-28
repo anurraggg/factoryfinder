@@ -159,3 +159,13 @@
       font-size: 1.4rem;
     }
   }
+
+  /* Add to existing CSS */
+.product-carousel__nav {
+    z-index: 2; /* Above slides */
+  }
+  
+  .product-carousel__arrow {
+    z-index: 3; /* Extra layer */
+    position: relative; /* Ensure stacking context */
+  }
