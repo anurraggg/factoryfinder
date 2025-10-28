@@ -1,11 +1,10 @@
 /* product-carousel.css */
-/* (Unchanged from previous—should work. If stacking, add !important to display: flex below) */
 .product-carousel {
     --carousel-height: 500px;
     --slide-transition: transform 0.3s ease-in-out;
     --arrow-size: 40px;
     --dot-size: 8px;
-    --bg-color: #fafafa;
+    --bg-color: #fff6e3;
     --text-color: #333;
     --accent-color: #ff6b35;
   
@@ -24,24 +23,24 @@
     font-size: 1.5rem;
     font-weight: bold;
     color: var(--text-color);
-    background: white;
+    background: #fff6e3;
     margin: 0;
   }
   
   .product-carousel__slides {
-    display: flex !important; /* Temp !important for debug—remove if fixed */
+    display: flex;
     transition: var(--slide-transition);
     height: var(--carousel-height);
   }
   
   .product-carousel__slide {
-    min-width: 100%;
+    min-width: 105%;
     display: flex;
     align-items: center;
     padding: 40px;
     box-sizing: border-box;
-    background: white;
-    flex-shrink: 0; /* Prevent shrink */
+    background: #fff6e3;
+    flex-shrink: 0;
   }
   
   .product-carousel__slide-image {
@@ -79,11 +78,11 @@
     justify-content: space-between;
     padding: 0 20px;
     pointer-events: none;
-    z-index: 1;
+    z-index: 2;
   }
   
   .product-carousel__arrow {
-    background: rgba(255, 255, 255, 0.9);
+    background: #d9001d;
     border: none;
     width: var(--arrow-size);
     height: var(--arrow-size);
@@ -96,7 +95,10 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: background 0.2s;
     pointer-events: all;
-    color: var(--accent-color);
+    color: white;
+    z-index: 3;
+    position: relative;
+    margin: 12px 25px;
   }
   
   .product-carousel__arrow:hover {
@@ -112,7 +114,7 @@
     justify-content: center;
     gap: 8px;
     padding: 20px;
-    background: white;
+    background: #fff6e3;
   }
   
   .product-carousel__dot {
@@ -160,12 +162,10 @@
     }
   }
 
-  /* Add to existing CSS */
-.product-carousel__nav {
-    z-index: 2; /* Above slides */
+  button.product-carousel__arrow.product-carousel__arrow--left{
+    color: white;
   }
-  
-  .product-carousel__arrow {
-    z-index: 3; /* Extra layer */
-    position: relative; /* Ensure stacking context */
+
+  button.product-carousel__arrow.product-carousel__arrow--right{
+    color: white;
   }
