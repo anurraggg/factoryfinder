@@ -77,7 +77,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(to right, #FF6B35, #FF8E53);
+    background: linear-gradient(to right, #d9001d, #d9001d);
     border-radius: 15px 0 0 0;
   }
   
@@ -95,7 +95,7 @@
     max-height: 400px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #FF6B35 #FFFBE8;
+    scrollbar-color: #d9001d #fff6e3;
   }
   
   .recipe-detail .ingredients ul::-webkit-scrollbar {
@@ -127,7 +127,7 @@
   
   .recipe-detail .ingredients .ingredient-name::before {
     content: '• ';
-    color: #D4A017;
+    color: #D9001d;
     font-weight: bold;
     font-size: 1.3em;
     margin-right: 8px;
@@ -151,7 +151,7 @@
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(255, 107, 53, 0.8);
+    background: #d9001d;
     color: white;
     border: none;
     border-radius: 50%;
