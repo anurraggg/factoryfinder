@@ -8,7 +8,7 @@
   
   .recipe-detail > div:first-child {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 400px;
     gap: 40px;
     align-items: start;
   }
@@ -23,9 +23,10 @@
   
   .recipe-detail .subtitle {
     font-weight: bold;
-    font-size: 1.3rem;
+    font-size: 3rem;
     margin-bottom: 15px;
-    color: #666;
+    color: black;
+    font-family: 'Times New Roman', Times, serif;
   }
   
   .recipe-detail .hero-image {
@@ -38,8 +39,8 @@
   .recipe-detail p {
     line-height: 1.7;
     margin-bottom: 20px;
-    color: #555;
-    font-size: 1.1rem;
+    color: black;
+    font-size: 1.4rem;
   }
   
   .recipe-detail .metadata {
@@ -83,7 +84,7 @@
   .recipe-detail .ingredients h2 {
     font-size: 1.6rem;
     margin-bottom: 20px;
-    color: #D4A017;
+    color: black;
     font-weight: bold;
   }
   
@@ -106,21 +107,20 @@
   }
   
   .recipe-detail .ingredients ul::-webkit-scrollbar-thumb {
-    background: #FF6B35;
+    background: #d9001d;
     border-radius: 3px;
   }
   
   .recipe-detail .ingredients li {
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 15px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 1fr 80px;
+    gap: 20px;
+    align-items: start;
     font-size: 1rem;
   }
   
   .recipe-detail .ingredients .ingredient-name {
-    flex: 1;
     text-align: left;
     line-height: 1.4;
   }
@@ -129,20 +129,22 @@
     content: '• ';
     color: #D4A017;
     font-weight: bold;
-    margin-right: 5px;
+    font-size: 1.3em;
+    margin-right: 8px;
+    vertical-align: middle;
   }
   
   .recipe-detail .ingredients .quantity {
-    background: #FF6B35;
+    background: #d9001d;
     color: white;
-    padding: 4px 10px;
+    padding: 4px 12px;
     border-radius: 5px;
     font-size: 0.95rem;
-    min-width: 45px;
     text-align: center;
     font-weight: bold;
-    flex-shrink: 0;
     white-space: nowrap;
+    justify-self: end;
+    margin-right: 10px;
   }
   
   .recipe-detail .scroll-hint {
@@ -238,12 +240,16 @@
     }
   
     .recipe-detail .ingredients li {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 5px;
+      grid-template-columns: 1fr auto;
+      gap: 15px;
+      justify-items: start;
     }
   
     .recipe-detail .ingredients .quantity {
-      align-self: flex-end;
+      justify-self: end;
     }
+  }
+
+  .section.highlight.recipe-detail-container{
+    background-color: #fff6e3;
   }

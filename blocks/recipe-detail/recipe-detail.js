@@ -62,14 +62,26 @@ export default async function decorate(block) {
     // If ul exists, enhance existing lis
     [...ul.querySelectorAll('li')].forEach(li => {
       if (!li.querySelector('.ingredient-name')) {
-        const textNode = li.childNodes[0];
-        if (textNode.nodeType === Node.TEXT_NODE) {
-          const nameSpan = document.createElement('span');
-          nameSpan.classList.add('ingredient-name');
-          nameSpan.textContent = textNode.textContent.trim();
-          li.replaceChild(nameSpan, textNode);
+        let nameText = '';
+        let qtyText = '';
+        const children = [...li.childNodes];
+        let fullText = children.map(node => node.textContent || node.innerText || '').join('').trim();
+        const match = fullText.match(/^(.*)\s*\(([^\)]+)\)$/);
+        if (match) {
+          nameText = match[1].trim();
+          qtyText = match[2].trim();
+        } else {
+          nameText = fullText;
         }
-        // Assume quantity is already handled or add if needed
+        const nameSpan = document.createElement('span');
+        nameSpan.classList.add('ingredient-name');
+        nameSpan.textContent = nameText;
+        const qtySpan = document.createElement('span');
+        qtySpan.classList.add('quantity');
+        qtySpan.textContent = qtyText;
+        li.innerHTML = '';
+        li.appendChild(nameSpan);
+        if (qtyText) li.appendChild(qtySpan);
       }
     });
   }
