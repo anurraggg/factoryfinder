@@ -103,6 +103,7 @@
   
   .product-carousel__arrow:hover {
     background: white;
+    color: #d9001d;
   }
   
   .product-carousel__arrow--left {
