@@ -10,7 +10,7 @@
     return (match && match[2].length === 11) ? match[2] : null;
   }
   
-  export default function decorate(block) {
+  export default async function decorate(block) {
     // Find the first child div (table cell content)
     const cell = block.querySelector(':scope > div > div');
     if (!cell) return;
@@ -24,10 +24,14 @@
       url = cell.textContent.trim();
     }
   
+    // Clean URL (strip extra params)
+    url = url.split('?')[0].split('#')[0];
+  
     // Get video ID
     const videoId = getYouTubeVideoId(url);
     if (!videoId) {
-      console.warn('Invalid YouTube URL in block:', url);
+      // Fallback UI for invalid URL
+      block.innerHTML = '<div class="youtube-fallback">Invalid YouTube URL. Please check the link.</div>';
       return;
     }
   
@@ -40,14 +44,21 @@
   
     // Create iframe
     const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube.com/embed/${videoId}`;
+    iframe.src = `https://www.youtube.com/embed/${videoId}?rel=0`; // rel=0 hides related videos
     iframe.title = 'YouTube video player';
     iframe.frameBorder = '0';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.loading = 'lazy'; // Performance: defer offscreen loads
+    iframe.setAttribute('aria-label', 'Embedded YouTube video');
   
     // Append iframe to container, container to block
     container.appendChild(iframe);
     block.appendChild(container);
+  
+    // Optional: Load eagerly if above-fold (integrate with Helix LCP if needed)
+    if (block.getBoundingClientRect().top < window.innerHeight) {
+      iframe.loading = 'eager';
+    }
   }

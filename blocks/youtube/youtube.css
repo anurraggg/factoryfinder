@@ -1,16 +1,28 @@
 .youtube {
+    width: 100%;
+    margin: 0;
+    /* Centers on ultra-wide screens if needed, but full-width by default */
     max-width: 1200px;
-    margin: 0 auto;
-    width: calc(100% - 2rem);
+    margin-left: auto;
+    margin-right: auto;
   }
   
   .youtube-container {
     position: relative;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
-    height: 0;
-    overflow: hidden;
-    border-radius: 8px; /* Optional: subtle rounding */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: subtle shadow */
+    width: 100%;
+    aspect-ratio: 16 / 9; /* Modern 16:9; falls back to padding below */
+    overflow: visible; /* Prevents clipping of iframe edges */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Fallback for older browsers without aspect-ratio support */
+  @supports not (aspect-ratio: 16 / 9) {
+    .youtube-container {
+      aspect-ratio: unset;
+      height: 0;
+      padding-bottom: 56.25%; /* 16:9 */
+    }
   }
   
   .youtube-container iframe {
@@ -20,4 +32,24 @@
     width: 100%;
     height: 100%;
     border: 0;
+    border-radius: 8px; /* Matches container */
+  }
+  
+  /* Mobile tweaks: Ensure no horizontal scroll or extra padding */
+  @media (max-width: 600px) {
+    .youtube {
+      width: 100vw;
+      position: relative;
+      left: 50%;
+      right: 50%;
+      margin-left: -50vw;
+      margin-right: -50vw;
+    }
+  }
+  
+  .youtube-fallback {
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+    font-style: italic;
   }
