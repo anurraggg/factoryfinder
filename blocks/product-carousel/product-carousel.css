@@ -129,7 +129,7 @@
   
   .product-carousel__dot--active,
   .product-carousel__dot:hover {
-    background: var(--accent-color);
+    background: #d9001d;
   }
   
   @media (max-width: 900px) {
