@@ -35,6 +35,18 @@
     border-radius: 8px; /* Matches container */
   }
   
+  /* NEW: Eliminate bottom space by overriding section padding for YouTube blocks */
+  .youtube-container.section,
+  section.youtube-container {
+    padding-bottom: 0 !important; /* Removes default section bottom padding */
+    margin-bottom: 0; /* Clears any extra margins */
+  }
+  
+  /* Also target the immediate block wrapper if needed */
+  .youtube-wrapper {
+    margin-bottom: 0;
+  }
+  
   /* Mobile tweaks: Ensure no horizontal scroll or extra padding */
   @media (max-width: 600px) {
     .youtube {
@@ -45,6 +57,12 @@
       margin-left: -50vw;
       margin-right: -50vw;
     }
+    
+    /* Mobile-specific: Zero out vertical spacing */
+    .youtube-container.section,
+    section.youtube-container {
+      padding: 1rem 0 0 !important; /* Top padding only for flow */
+    }
   }
   
   .youtube-fallback {
@@ -52,4 +70,8 @@
     text-align: center;
     color: #666;
     font-style: italic;
+  }
+
+  .section.highlight.youtube-container{
+    background: #fff6e3;
   }

@@ -1,276 +1,142 @@
-// product-carousel.js
-import { createOptimizedPicture } from '../../scripts/aem.js';
+export default function decorate(block) {
+  console.log('✅ Product Carousel JS loaded!');
 
-/**
- * Initializes the product carousel block.
- * @param {Element} block The block element
- */
-export default async function decorate(block) {
-  console.log('Starting product-carousel decorate'); // Debug log
+  block.classList.add('product-carousel');
 
-  // Extract title and slides from block rows
-  const rows = [...block.querySelectorAll(':scope > div')];
-  console.log(`Found ${rows.length} rows`); // Debug
+  // Detect table OR fallback to plain content
+  let rows = [];
+  const table = block.querySelector('table, div > table');
 
-  if (rows.length < 2) {
-    console.log('Too few rows, skipping'); // Debug
-    return;
-  }
+  if (table) {
+    console.log('📋 Found table inside block');
+    rows = table.querySelectorAll('tr');
+  } else {
+    console.log('🧩 No table found — falling back to plain HTML parsing');
 
-  const titleRow = rows[0];
-  const titleCell = titleRow.querySelector('div');
-  const title = titleCell ? titleCell.innerHTML.trim() : 'Discover Our Products';
-  titleCell.innerHTML = `<h2 class="product-carousel__title">${title}</h2>`;
+    // Fallback parser: assume images + titles + descriptions in sequence
+    const images = [...block.querySelectorAll('img')];
+    const paragraphs = [...block.querySelectorAll('p')].map(p => p.innerText.trim()).filter(Boolean);
 
-  // Build slides array
-  const slides = [];
-  for (let i = 1; i < rows.length; i += 1) {
-    const row = rows[i];
-    const cells = [...row.querySelectorAll('div')];
-    console.log(`Row ${i}: ${cells.length} cells`); // Debug
-    if (cells.length >= 2) { // Relaxed: >=2 (title + desc; image optional)
-      let imgCell = cells[0];
-      const titleCellSlide = cells[1];
-      const descCell = cells[2] || { innerHTML: '' }; // Fallback empty desc
-
-      // Auto-convert plain URL to <img> if no existing img
-      const cellText = imgCell.innerHTML.trim();
-      let imageHTML = '';
-      let img = imgCell.querySelector('img');
-      if (!img && cellText.startsWith('http') && cellText.includes('.')) { // Likely a URL
-        console.log(`Auto-converting URL in row ${i}: ${cellText.substring(0, 50)}...`); // Debug
-        img = document.createElement('img');
-        img.src = cellText;
-        img.alt = 'Product Image'; // Default alt
-        imgCell.innerHTML = ''; // Clear text
-        imgCell.appendChild(img);
-      }
-
-      // Optimize image if present
-      img = imgCell.querySelector('img'); // Re-query after possible creation
-      if (img) {
-        const alt = img.alt || 'Product Image';
-        const src = img.src;
-        const picture = createOptimizedPicture(src, alt, false, [
-          { media: '(min-width: 900px)', width: '400' },
-          { width: '300' },
-        ]);
-        imageHTML = picture.outerHTML;
-      } else {
-        imageHTML = imgCell.innerHTML; // Fallback to raw content
-      }
-
-      slides.push({
-        image: imageHTML,
-        title: titleCellSlide.innerHTML,
-        description: descCell.innerHTML,
-      });
-      console.log(`Added slide ${slides.length}: ${titleCellSlide.innerHTML.substring(0, 20)}...`); // Debug
-    } else {
-      console.log(`Skipping row ${i}: too few cells`); // Debug
+    // Group by image + next two text nodes (title + desc)
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      const title = paragraphs[i * 2] || '';
+      const desc = paragraphs[i * 2 + 1] || '';
+      rows.push({ img, title, desc });
     }
   }
 
-  console.log(`Built ${slides.length} slides`); // Debug
-  if (slides.length < 1) {
-    console.log('No slides, keeping original content'); // Debug
-    return;
-  }
+  const slides = [];
 
-  const totalSlides = slides.length;
+  // If rows came from table
+  if (table) {
+    rows.forEach((row, index) => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 3) {
+        const firstCell = cells[0].innerText.trim().toLowerCase();
+        if (firstCell === 'product carousel' || index === 0) return;
 
-  // Build extended slides for infinite: [last, ...slides, first]
-  const extendedSlides = [slides[totalSlides - 1], ...slides, slides[0]];
+        let imgSrc = '';
+        const imgEl = cells[0].querySelector('img');
+        if (imgEl) imgSrc = imgEl.src;
+        else if (cells[0].innerText.match(/^https?:\/\//)) imgSrc = cells[0].innerText.trim();
 
-  // Build DOM structure
-  const slidesContainer = document.createElement('div');
-  slidesContainer.className = 'product-carousel__slides';
-  slidesContainer.setAttribute('role', 'list');
-  slidesContainer.setAttribute('aria-label', 'Product carousel');
-
-  extendedSlides.forEach((slide) => {
-    const slideEl = document.createElement('div');
-    slideEl.className = 'product-carousel__slide';
-    slideEl.setAttribute('role', 'listitem');
-    slideEl.innerHTML = `
-      <div class="product-carousel__slide-image">${slide.image}</div>
-      <div class="product-carousel__slide-content">
-        <h3 class="product-carousel__slide-title">${slide.title}</h3>
-        <p class="product-carousel__slide-description">${slide.description}</p>
-      </div>
-    `;
-    slidesContainer.appendChild(slideEl);
-  });
-
-  // Navigation arrows
-  const nav = document.createElement('nav');
-  nav.className = 'product-carousel__nav';
-  nav.innerHTML = `
-    <button class="product-carousel__arrow product-carousel__arrow--left" aria-label="Previous slide">◀</button>
-    <button class="product-carousel__arrow" aria-label="Next slide">▶</button>
-  `;
-
-  // Dots indicators
-  const dotsContainer = document.createElement('div');
-  dotsContainer.className = 'product-carousel__dots';
-  dotsContainer.setAttribute('role', 'tablist');
-  for (let i = 0; i < totalSlides; i += 1) {
-    const dot = document.createElement('button');
-    dot.className = 'product-carousel__dot';
-    dot.setAttribute('role', 'tab');
-    dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
-    dot.setAttribute('aria-selected', i === 0);
-    dotsContainer.appendChild(dot);
-  }
-  const dots = [...dotsContainer.querySelectorAll('.product-carousel__dot')];
-
-  // Assemble block
-  block.className = 'product-carousel'; // Override to ensure class
-  block.innerHTML = '';
-  block.append(titleRow); // Append whole title row for structure
-  block.appendChild(slidesContainer);
-  block.appendChild(nav);
-  block.appendChild(dotsContainer);
-
-  console.log('Block assembled, initializing interactions'); // Debug
-
-  // State
-  let currentExtendedIndex = 1; // Start at first real slide (index 1 in extended)
-  let isTransitioning = false;
-  let autoplayInterval;
-  let realCurrentIndex = 0; // For dots: 0 to total-1
-
-  // Update dots
-  function updateDots(realIndex) {
-    dots.forEach((dot, i) => {
-      const active = i === realIndex;
-      dot.setAttribute('aria-selected', active);
-      dot.classList.toggle('product-carousel__dot--active', active);
+        slides.push({
+          image: imgSrc,
+          title: cells[1].innerText.trim(),
+          description: cells[2].innerText.trim(),
+        });
+      }
+    });
+  } else {
+    // If rows came from fallback
+    rows.forEach((r) => {
+      slides.push({
+        image: r.img.src,
+        title: r.title,
+        description: r.desc,
+      });
     });
   }
 
-  // Direct set to real slide index (for dots/keyboard)
-  function setToRealIndex(targetReal) {
-    if (isTransitioning || targetReal === realCurrentIndex) return;
-    isTransitioning = true;
-
-    const targetExtended = targetReal + 1;
-    const translateX = -targetExtended * 100;
-    slidesContainer.style.transform = `translateX(${translateX}%)`;
-
-    currentExtendedIndex = targetExtended;
-    realCurrentIndex = targetReal;
-    updateDots(realCurrentIndex);
-
-    setTimeout(() => { isTransitioning = false; }, 300); // Ensure reset
+  console.log('Slides found:', slides);
+  if (slides.length === 0) {
+    console.warn('⚠️ Still no slides found!');
+    return;
   }
 
-  // Slide by direction (+1 next, -1 prev)
-  async function slideByDirection(direction) {
-    if (isTransitioning) {
-      console.log('Transitioning, skipping slide'); // Debug
-      return;
-    }
-    try {
-      isTransitioning = true;
-      console.log(`Starting slide ${direction > 0 ? 'next' : 'prev'}`); // Debug
+  // build wrapper (same as before)
+  const wrapper = document.createElement('div');
+  wrapper.className = 'product-carousel__wrapper';
+  slides.forEach((slide, i) => {
+    const slideEl = document.createElement('div');
+    slideEl.className = 'product-carousel__slide';
+    if (i === 0) slideEl.classList.add('active');
 
-      let newExtendedIndex = currentExtendedIndex + direction;
-      const translateX = -newExtendedIndex * 100;
-      slidesContainer.style.transform = `translateX(${translateX}%)`;
-      currentExtendedIndex = newExtendedIndex;
+    const left = document.createElement('div');
+    left.className = 'product-carousel__left';
+    const img = document.createElement('img');
+    img.src = slide.image;
+    img.alt = slide.title || 'Product image';
+    left.appendChild(img);
 
-      const extendedLength = totalSlides + 2;
+    const right = document.createElement('div');
+    right.className = 'product-carousel__right';
+    right.innerHTML = `<h3>${slide.title}</h3><p>${slide.description}</p>`;
 
-      let needsReset = false;
-      let resetTo = 0;
+    slideEl.append(left, right);
+    wrapper.append(slideEl);
+  });
 
-      if (newExtendedIndex === extendedLength - 1) { // Hit appended first (after last)
-        needsReset = true;
-        resetTo = 1; // Back to first real
-        realCurrentIndex = 0;
-      } else if (newExtendedIndex === 0) { // Hit prepended last (before first)
-        needsReset = true;
-        resetTo = totalSlides; // To last real
-        realCurrentIndex = totalSlides - 1;
-      } else {
-        realCurrentIndex = (newExtendedIndex - 1 + totalSlides) % totalSlides; // Modulo for safety
-      }
+  block.innerHTML = '';
+  block.append(wrapper);
 
-      updateDots(realCurrentIndex);
+  // Add buttons + dots (same as before)
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'product-carousel__nav product-carousel__prev';
+  prevBtn.innerHTML = '←';
 
-      if (needsReset) {
-        // Wait for transition
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        slidesContainer.style.transition = 'none';
-        slidesContainer.style.transform = `translateX(${-resetTo * 100}%)`;
-        currentExtendedIndex = resetTo;
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        slidesContainer.style.transition = '';
-      }
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'product-carousel__nav product-carousel__next';
+  nextBtn.innerHTML = '→';
 
-      console.log(`Completed slide to real ${realCurrentIndex}`); // Debug
-    } catch (error) {
-      console.error('Slide error:', error); // Catch any
-    } finally {
-      isTransitioning = false;
-    }
+  const dots = document.createElement('div');
+  dots.className = 'product-carousel__dots';
+  slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'product-carousel__dot';
+    if (i === 0) dot.classList.add('active');
+    dots.append(dot);
+  });
+
+  block.append(prevBtn, nextBtn, dots);
+
+  // Carousel logic
+  let current = 0;
+  const allSlides = block.querySelectorAll('.product-carousel__slide');
+  const allDots = block.querySelectorAll('.product-carousel__dot');
+
+  function showSlide(index) {
+    allSlides.forEach(s => s.classList.remove('active'));
+    allDots.forEach(d => d.classList.remove('active'));
+    allSlides[index].classList.add('active');
+    allDots[index].classList.add('active');
   }
 
-  // NEW: Event delegation for arrows (fallback + logs)
-  block.addEventListener('click', (e) => {
-    if (e.target.matches('.product-carousel__arrow--left')) {
-      console.log('Arrow clicked: prev'); // Debug
-      e.preventDefault();
-      slideByDirection(-1);
-    } else if (e.target.matches('.product-carousel__arrow:not(.product-carousel__arrow--left)')) {
-      console.log('Arrow clicked: next'); // Debug
-      e.preventDefault();
-      slideByDirection(1);
-    }
+  prevBtn.addEventListener('click', () => {
+    current = (current - 1 + slides.length) % slides.length;
+    showSlide(current);
   });
 
-  // Dots: direct set
-  dots.forEach((dot, i) => {
-    dot.addEventListener('click', () => setToRealIndex(i));
+  nextBtn.addEventListener('click', () => {
+    current = (current + 1) % slides.length;
+    showSlide(current);
   });
 
-  // Keyboard
-  block.setAttribute('tabindex', '0'); // Focusable
-  block.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') slideByDirection(1);
-    if (e.key === 'ArrowLeft') slideByDirection(-1);
+  allDots.forEach((dot, i) => {
+    dot.addEventListener('click', () => {
+      current = i;
+      showSlide(i);
+    });
   });
-
-  // Touch/swipe
-  let startX = 0;
-  let endX = 0;
-  slidesContainer.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
-  slidesContainer.addEventListener('touchend', (e) => {
-    endX = e.changedTouches[0].clientX;
-    const diff = startX - endX;
-    if (Math.abs(diff) > 50) {
-      slideByDirection(diff > 0 ? 1 : -1);
-    }
-  });
-
-  // Autoplay
-  function startAutoplay() {
-    autoplayInterval = setInterval(() => slideByDirection(1), 3000);
-  }
-  function stopAutoplay() {
-    clearInterval(autoplayInterval);
-  }
-  startAutoplay();
-
-  // Pause on hover/interaction
-  block.addEventListener('mouseenter', stopAutoplay);
-  block.addEventListener('mouseleave', startAutoplay);
-  dots.forEach(dot => dot.addEventListener('click', stopAutoplay)); // Pause on manual
-
-  // Initial setup
-  slidesContainer.style.transform = `translateX(${-currentExtendedIndex * 100}%)`;
-  updateDots(realCurrentIndex);
-
-  console.log('Product carousel initialized!'); // Debug
 }
